@@ -1,8 +1,10 @@
-import db
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
 import requests
-from pyVintedVN import Vinted, requester
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+import db
 from logger import get_logger
+from pyVintedVN import Vinted, requester
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -240,6 +242,51 @@ def process_remove_country(country):
     return "Country removed.", db.get_allowlist()
 
 
+def process_add_blocked_user(user_id):
+    """
+    Process the addition of a user to the blocked users list.
+
+    Args:
+        user_id (str): The Vinted user ID to block
+
+    Returns:
+        tuple: (message, success)
+            - message (str): Status message
+            - success (bool): True if user was blocked successfully
+    """
+    user_id = user_id.strip()
+
+    if not user_id.isdigit():
+        return "Invalid user ID. Must be a numeric value.", False
+
+    if db.is_user_blocked(user_id):
+        return f"User {user_id} is already blocked.", False
+
+    db.add_blocked_user(user_id)
+    return "User blocked.", True
+
+
+def process_remove_blocked_user(user_id):
+    """
+    Process the removal of a user from the blocked users list.
+
+    Args:
+        user_id (str): The Vinted user ID to unblock
+
+    Returns:
+        tuple: (message, success)
+            - message (str): Status message
+            - success (bool): True if user was unblocked successfully
+    """
+    user_id = user_id.strip()
+
+    if not user_id.isdigit():
+        return "Invalid user ID.", False
+
+    db.remove_blocked_user(user_id)
+    return "User unblocked.", True
+
+
 def get_user_country(profile_id):
     """
     Get the country code for a Vinted user.
@@ -312,7 +359,6 @@ def clear_item_queue(items_queue, new_items_queue):
         data, query_id = items_queue.get()
         banwords_str = db.get_parameter("banwords")
         for item in reversed(data):
-
             # If already in db, pass
             last_query_timestamp = db.get_last_timestamp(query_id)
             if (
@@ -323,6 +369,10 @@ def clear_item_queue(items_queue, new_items_queue):
             # In case of multiple queries, we need to check if the item is already in the db
             elif db.is_item_in_db_by_id(item.id) is True:
                 # We update the timestamp
+                db.update_last_timestamp(query_id, item.raw_timestamp)
+                pass
+            # Check if the user is blocked
+            elif db.is_user_blocked(str(item.raw_data["user"]["id"])):
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
             # If there's an allowlist and

@@ -26,7 +26,7 @@ docker run -d \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/logs:/app/logs" \
   --restart unless-stopped \
-  fuyucch1/vinted-notifications:latest
+  daninotfound/vinted-notifications:latest
 ```
 
 ### Access Points

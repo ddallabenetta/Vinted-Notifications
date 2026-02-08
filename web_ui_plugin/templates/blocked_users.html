@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Blocked Users - Vinted Notifications{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Blocked Users</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="bi bi-person-x me-2 text-info"></i>
+                <h5 class="card-title mb-0">Block a User</h5>
+            </div>
+            <div class="card-body">
+                <form action="/add_blocked_user" method="post">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <div class="form-group">
+                                <label for="user_id">Vinted User ID</label>
+                                <input type="text" class="form-control" id="user_id" name="user_id"
+                                       placeholder="12345678" required>
+                                <small class="form-text text-muted">Enter the numeric user ID from the Vinted profile
+                                    URL (e.g., 12345678 from /member/12345678-username)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <button type="submit" class="btn btn-primary w-100">Block User</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="bi bi-person-x-fill me-2 text-info"></i>
+                <h5 class="card-title mb-0">Blocked Users List</h5>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for user_id, username in users %}
+                        <tr>
+                            <td>{{ user_id }}</td>
+                            <td>{{ username if username else "N/A" }}</td>
+                            <td>
+                                <form action="/remove_blocked_user/{{ user_id }}" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Remove
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                            data-bs-target="#clearBlockedUsersModal">
+                        <i class="bi bi-trash"></i> Clear All
+                    </button>
+
+                    <!-- Clear Blocked Users Modal -->
+                    <div class="modal fade" id="clearBlockedUsersModal" tabindex="-1"
+                         aria-labelledby="clearBlockedUsersModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="clearBlockedUsersModalLabel">Confirm Clearing
+                                        Blocked Users</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Are you sure you want to clear the entire blocked users list? Items from all
+                                    users will be shown again.
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                                    </button>
+                                    <form action="/clear_blocked_users" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">Clear All</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info show">
+                    <i class="bi bi-info-circle"></i> No blocked users. Items from all users will be shown.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex align-items-center">
+                <i class="bi bi-info-circle me-2 text-info"></i>
+                <h5 class="card-title mb-0">About Blocked Users</h5>
+            </div>
+            <div class="card-body">
+                <p>The blocked users list allows you to filter out items from specific Vinted sellers. Items from
+                    blocked users will be silently ignored and no notifications will be sent for them.</p>
+                <p>If the list is empty, items from all users will be shown.</p>
+                <p>To find a user's ID:</p>
+                <ul>
+                    <li>Go to the seller's profile on Vinted</li>
+                    <li>The URL will look like: <code>https://www.vinted.fr/member/12345678-username</code></li>
+                    <li>The numeric part (<strong>12345678</strong>) is the user ID</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

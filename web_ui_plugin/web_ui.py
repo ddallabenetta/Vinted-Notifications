@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-import db
-import core
 import os
 import re
-from urllib.parse import urlparse, parse_qs
 from datetime import datetime
+from urllib.parse import parse_qs, urlparse
+
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+
+import core
+import db
 from logger import get_logger
 
 # Get logger for this module
@@ -117,7 +119,7 @@ def index():
             ),
             "query": last_item[5],
             "photo_url": last_item[6],
-            "url": f"{urlparse(last_item[5]).scheme}://{urlparse(last_item[5]).netloc}/items/{last_item[0]}"
+            "url": f"{urlparse(last_item[5]).scheme}://{urlparse(last_item[5]).netloc}/items/{last_item[0]}",
         }
     else:
         stats["last_item"] = None
@@ -259,7 +261,9 @@ def items():
                 # Ugly Ugly Ugly very Ugly eeew but I have to do a proper migration of existing db later else it'll break
                 # Eeew bad me >:c
                 "query": (
-                    item[7] if item[7] else parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
+                    item[7]
+                    if item[7]
+                    else parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
                     if parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
                     else item[5]
                 ),
@@ -461,6 +465,43 @@ def clear_allowlist():
     flash("Allowlist cleared", "success")
 
     return redirect(url_for("allowlist"))
+
+
+@app.route("/blocked_users")
+def blocked_users():
+    users = db.get_blocked_users()
+    if users == 0:
+        users = []
+
+    return render_template("blocked_users.html", users=users)
+
+
+@app.route("/add_blocked_user", methods=["POST"])
+def add_blocked_user():
+    user_id = request.form.get("user_id", "").strip()
+    if user_id:
+        message, success = core.process_add_blocked_user(user_id)
+        flash(message, "success" if success else "warning")
+    else:
+        flash("No user ID provided", "error")
+
+    return redirect(url_for("blocked_users"))
+
+
+@app.route("/remove_blocked_user/<user_id>", methods=["POST"])
+def remove_blocked_user(user_id):
+    message, success = core.process_remove_blocked_user(user_id)
+    flash(message, "success")
+
+    return redirect(url_for("blocked_users"))
+
+
+@app.route("/clear_blocked_users", methods=["POST"])
+def clear_blocked_users():
+    db.clear_blocked_users()
+    flash("Blocked users list cleared", "success")
+
+    return redirect(url_for("blocked_users"))
 
 
 @app.route("/logs")

@@ -12,7 +12,7 @@ when items matching your search criteria are posted.
 If you just want to get started fast with Docker Compose:
 
 ```bash
-curl -O https://raw.githubusercontent.com/Fuyucch1/Vinted-Notifications/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ddallabenetta/Vinted-Notifications/main/docker-compose.yml
 docker-compose up -d
 ```
 
@@ -59,7 +59,7 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
      -v "$(pwd)/data:/app/data" \
      -v "$(pwd)/logs:/app/logs" \
      --restart unless-stopped \
-     fuyucch1/vinted-notifications:latest
+     daninotfound/vinted-notifications:latest
    ```
 
    > **Note**: The volume mounts ensure your data and logs are preserved even if the container is removed or updated.
@@ -85,7 +85,7 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
 
    services:
      vinted-notifications:
-       image: fuyucch1/vinted-notifications:latest
+       image: daninotfound/vinted-notifications:latest
        pull_policy: always
        ports:
          - "8000:8000"
@@ -128,11 +128,11 @@ Then open [http://localhost:8000](http://localhost:8000) in your browser.
 1. **Clone the repository or download the latest release**
 
    ```bash
-   git clone https://github.com/Fuyucch1/Vinted-Notifications.git
+   git clone https://github.com/ddallabenetta/Vinted-Notifications.git
    cd Vinted-Notifications
    ```
 
-   Alternatively, download the [latest release](https://github.com/Fuyucch1/Vinted-Notifications/releases/latest) and
+   Alternatively, download the [latest release](https://github.com/ddallabenetta/Vinted-Notifications/releases/latest) and
    extract it.
 
 2. **Install dependencies**
@@ -225,7 +225,7 @@ MESSAGE = '''\
 
 1. Pull the latest image:
    ```bash
-   docker pull fuyucch1/vinted-notifications:latest
+   docker pull daninotfound/vinted-notifications:latest
    ```
 2. Stop and remove the existing container:
    ```bash
@@ -241,7 +241,7 @@ MESSAGE = '''\
      -v "$(pwd)/data:/app/data" \
      -v "$(pwd)/logs:/app/logs" \
      --restart unless-stopped \
-     fuyucch1/vinted-notifications:latest
+     daninotfound/vinted-notifications:latest
    ```
 
    > **Important**: This update method preserves your data because of the volume mounts. Your database and logs will be
@@ -251,7 +251,7 @@ MESSAGE = '''\
 
 1. Pull the latest image:
    ```bash
-   docker pull fuyucch1/vinted-notifications:latest
+   docker pull daninotfound/vinted-notifications:latest
    ```
 2. Restart your container:
    ```bash
@@ -264,7 +264,7 @@ MESSAGE = '''\
 
 ### Option 3: Self-Build
 
-1. Download the latest [release](https://github.com/Fuyucch1/Vinted-Notifications/releases/latest)
+1. Download the latest [release](https://github.com/ddallabenetta/Vinted-Notifications/releases/latest)
 2. Back up your `vinted_notifications.db` file
 3. Replace all files with the new ones
 4. Restart the application

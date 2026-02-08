@@ -1,8 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
   vinted-notifications:
-    image: fuyucch1/vinted-notifications:latest
+    image: daninotfound/vinted-notifications:latest
     pull_policy: always
     ports:
       - "8000:8000"

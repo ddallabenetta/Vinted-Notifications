@@ -35,6 +35,13 @@ CREATE TABLE IF NOT EXISTS allowlist
     country TEXT
 );
 
+-- Blocked users table
+CREATE TABLE IF NOT EXISTS blocked_users
+(
+    user_id  TEXT PRIMARY KEY,
+    username TEXT
+);
+
 -- Parameters table
 CREATE TABLE IF NOT EXISTS parameters
 (
@@ -58,7 +65,7 @@ VALUES ('telegram_enabled', 'False'),
        ('rss_process_running', 'False'),
 
        ('version', '1.0.3'),
-       ('github_url', 'https://github.com/Fuyucch1/Vinted-Notifications'),
+       ('github_url', 'https://github.com/ddallabenetta/Vinted-Notifications'),
 
        ('items_per_query', '20'),
        ('query_refresh_delay', '60'),
