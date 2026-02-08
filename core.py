@@ -242,48 +242,48 @@ def process_remove_country(country):
     return "Country removed.", db.get_allowlist()
 
 
-def process_add_blocked_user(user_id):
+def process_add_blocked_user(username):
     """
     Process the addition of a user to the blocked users list.
 
     Args:
-        user_id (str): The Vinted user ID to block
+        username (str): The Vinted username to block
 
     Returns:
         tuple: (message, success)
             - message (str): Status message
             - success (bool): True if user was blocked successfully
     """
-    user_id = user_id.strip()
+    username = username.strip()
 
-    if not user_id.isdigit():
-        return "Invalid user ID. Must be a numeric value.", False
+    if not username:
+        return "Invalid username.", False
 
-    if db.is_user_blocked(user_id):
-        return f"User {user_id} is already blocked.", False
+    if db.is_user_blocked(username):
+        return f'User "{username}" is already blocked.', False
 
-    db.add_blocked_user(user_id)
+    db.add_blocked_user(username)
     return "User blocked.", True
 
 
-def process_remove_blocked_user(user_id):
+def process_remove_blocked_user(username):
     """
     Process the removal of a user from the blocked users list.
 
     Args:
-        user_id (str): The Vinted user ID to unblock
+        username (str): The Vinted username to unblock
 
     Returns:
         tuple: (message, success)
             - message (str): Status message
             - success (bool): True if user was unblocked successfully
     """
-    user_id = user_id.strip()
+    username = username.strip()
 
-    if not user_id.isdigit():
-        return "Invalid user ID.", False
+    if not username:
+        return "Invalid username.", False
 
-    db.remove_blocked_user(user_id)
+    db.remove_blocked_user(username)
     return "User unblocked.", True
 
 
@@ -372,7 +372,7 @@ def clear_item_queue(items_queue, new_items_queue):
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
             # Check if the user is blocked
-            elif db.is_user_blocked(str(item.raw_data["user"]["id"])):
+            elif db.is_user_blocked(item.raw_data["user"]["login"]):
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
             # If there's an allowlist and

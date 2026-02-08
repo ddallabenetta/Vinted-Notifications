@@ -299,15 +299,12 @@ def clear_allowlist():
             conn.close()
 
 
-def add_blocked_user(user_id, username=None):
+def add_blocked_user(username):
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO blocked_users (user_id, username) VALUES (?, ?)",
-            (user_id, username),
-        )
+        cursor.execute("INSERT INTO blocked_users (username) VALUES (?)", (username,))
         conn.commit()
     except Exception:
         print_exc()
@@ -316,12 +313,12 @@ def add_blocked_user(user_id, username=None):
             conn.close()
 
 
-def remove_blocked_user(user_id):
+def remove_blocked_user(username):
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM blocked_users WHERE user_id=?", (user_id,))
+        cursor.execute("DELETE FROM blocked_users WHERE username=?", (username,))
         conn.commit()
     except Exception:
         print_exc()
@@ -335,8 +332,8 @@ def get_blocked_users():
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, username FROM blocked_users")
-        users = cursor.fetchall()
+        cursor.execute("SELECT username FROM blocked_users")
+        users = [row[0] for row in cursor.fetchall()]
         if not users:
             return 0
         return users
@@ -345,12 +342,12 @@ def get_blocked_users():
             conn.close()
 
 
-def is_user_blocked(user_id):
+def is_user_blocked(username):
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute("SELECT 1 FROM blocked_users WHERE user_id=?", (user_id,))
+        cursor.execute("SELECT 1 FROM blocked_users WHERE username=?", (username,))
         return cursor.fetchone() is not None
     except Exception:
         print_exc()

@@ -2,8 +2,7 @@ BEGIN TRANSACTION;
 
 CREATE TABLE IF NOT EXISTS blocked_users
 (
-    user_id  TEXT PRIMARY KEY,
-    username TEXT
+    username TEXT PRIMARY KEY
 );
 
 UPDATE parameters

@@ -478,19 +478,19 @@ def blocked_users():
 
 @app.route("/add_blocked_user", methods=["POST"])
 def add_blocked_user():
-    user_id = request.form.get("user_id", "").strip()
-    if user_id:
-        message, success = core.process_add_blocked_user(user_id)
+    username = request.form.get("username", "").strip()
+    if username:
+        message, success = core.process_add_blocked_user(username)
         flash(message, "success" if success else "warning")
     else:
-        flash("No user ID provided", "error")
+        flash("No username provided", "error")
 
     return redirect(url_for("blocked_users"))
 
 
-@app.route("/remove_blocked_user/<user_id>", methods=["POST"])
-def remove_blocked_user(user_id):
-    message, success = core.process_remove_blocked_user(user_id)
+@app.route("/remove_blocked_user/<username>", methods=["POST"])
+def remove_blocked_user(username):
+    message, success = core.process_remove_blocked_user(username)
     flash(message, "success")
 
     return redirect(url_for("blocked_users"))

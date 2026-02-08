@@ -19,11 +19,11 @@
                     <div class="row">
                         <div class="col-md-10">
                             <div class="form-group">
-                                <label for="user_id">Vinted User ID</label>
-                                <input type="text" class="form-control" id="user_id" name="user_id"
-                                       placeholder="12345678" required>
-                                <small class="form-text text-muted">Enter the numeric user ID from the Vinted profile
-                                    URL (e.g., 12345678 from /member/12345678-username)</small>
+                                <label for="username">Vinted Username</label>
+                                <input type="text" class="form-control" id="username" name="username"
+                                       placeholder="username" required>
+                                <small class="form-text text-muted">Enter the Vinted username of the seller you want to
+                                    block (e.g., from the profile URL /member/12345678-<strong>username</strong>)</small>
                             </div>
                         </div>
                         <div class="col-md-2 d-flex align-items-center">
@@ -49,18 +49,16 @@
                     <table class="table table-hover">
                         <thead>
                         <tr>
-                            <th>User ID</th>
                             <th>Username</th>
                             <th>Actions</th>
                         </tr>
                         </thead>
                         <tbody>
-                        {% for user_id, username in users %}
+                        {% for username in users %}
                         <tr>
-                            <td>{{ user_id }}</td>
-                            <td>{{ username if username else "N/A" }}</td>
+                            <td>{{ username }}</td>
                             <td>
-                                <form action="/remove_blocked_user/{{ user_id }}" method="post" class="d-inline">
+                                <form action="/remove_blocked_user/{{ username }}" method="post" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash"></i> Remove
                                     </button>
@@ -124,11 +122,12 @@
                 <p>The blocked users list allows you to filter out items from specific Vinted sellers. Items from
                     blocked users will be silently ignored and no notifications will be sent for them.</p>
                 <p>If the list is empty, items from all users will be shown.</p>
-                <p>To find a user's ID:</p>
+                <p>To find a seller's username:</p>
                 <ul>
                     <li>Go to the seller's profile on Vinted</li>
-                    <li>The URL will look like: <code>https://www.vinted.fr/member/12345678-username</code></li>
-                    <li>The numeric part (<strong>12345678</strong>) is the user ID</li>
+                    <li>The URL will look like: <code>https://www.vinted.fr/member/12345678-<strong>username</strong></code></li>
+                    <li>The part after the dash is the username</li>
+                    <li>You can also find it displayed on their profile page</li>
                 </ul>
             </div>
         </div>
