@@ -1,344 +1,477 @@
-{% extends "base.html" %}
-
-{% block title %}Configuration - Vinted Notifications{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Configuration</h1>
+{% extends "base.html" %} {% block title %}Configuration - Vinted
+Notifications{% endblock %} {% block content %}
+<div class="page-header pt-3 pb-2 mb-3">
+    <h1>Configuration</h1>
+    <p>Manage application settings and services</p>
 </div>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-gear me-2 text-info"></i>
-                <h5 class="card-title mb-0">Application Settings</h5>
+<form action="/update_config" method="post">
+    <!-- System Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i
+                class="bi bi-gear me-2"
+                style="color: var(--muted-foreground)"
+            ></i
+            >System Settings
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label for="items_per_query" class="form-label"
+                        >Items Per Query</label
+                    >
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="items_per_query"
+                        name="items_per_query"
+                        value="{{ params.items_per_query }}"
+                    />
+                    <div class="form-text">
+                        Maximum number of items to fetch per query
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="query_refresh_delay" class="form-label"
+                        >Query Refresh Delay (seconds)</label
+                    >
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="query_refresh_delay"
+                        name="query_refresh_delay"
+                        value="{{ params.query_refresh_delay }}"
+                    />
+                    <div class="form-text">Delay between query refreshes</div>
+                </div>
             </div>
-            <div class="card-body">
-                <form action="/update_config" method="post">
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="card h-100">
-                                <div class="card-header d-flex align-items-center">
-                                    <i class="bi bi-gear-fill me-2 text-info"></i>
-                                    <h5 class="card-title mb-0">System Settings</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="items_per_query" class="form-label">Items Per Query</label>
-                                                <input type="number" class="form-control" id="items_per_query"
-                                                       name="items_per_query" value="{{ params.items_per_query }}">
-                                                <small class="form-text text-muted">Maximum number of items to fetch per
-                                                    query</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="query_refresh_delay" class="form-label">Query Refresh Delay
-                                                    (seconds)</label>
-                                                <input type="number" class="form-control" id="query_refresh_delay"
-                                                       name="query_refresh_delay"
-                                                       value="{{ params.query_refresh_delay }}">
-                                                <small class="form-text text-muted">Delay between query refreshes in
-                                                    seconds</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="banwords-input" class="form-label">Banwords</label>
-                                                <div class="input-group mb-2">
-                                                    <input type="text" class="form-control" id="banwords-input"
-                                                           placeholder="Enter a word to ban">
-                                                    <button class="btn btn-outline-secondary" type="button"
-                                                            id="add-banword-btn">Add
-                                                    </button>
-                                                </div>
-                                                <div id="banwords-container" class="d-flex flex-wrap gap-2 mb-2">
-                                                    <!-- Banwords will be displayed here as tags -->
-                                                </div>
-                                                <input type="hidden" id="banwords" name="banwords"
-                                                       value="{{ params.banwords }}">
-                                                <small class="form-text text-muted">Words to filter out from item
-                                                    titles. Items with these words in their titles will be
-                                                    ignored.</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-header d-flex align-items-center">
-                                    <i class="bi bi-telegram me-2 text-info"></i>
-                                    <h5 class="card-title mb-0">Telegram Bot</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <div class="form-check form-switch">
-                                            {% if params.telegram_enabled == 'True' %}
-                                            <input class="form-check-input" type="checkbox" id="telegram_enabled"
-                                                   name="telegram_enabled" checked>
-                                            {% else %}
-                                            <input class="form-check-input" type="checkbox" id="telegram_enabled"
-                                                   name="telegram_enabled">
-                                            {% endif %}
-                                            <label class="form-check-label" for="telegram_enabled">
-                                                Auto Start
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="telegram_token" class="form-label">Bot Token</label>
-                                        <input type="text" class="form-control" id="telegram_token"
-                                               name="telegram_token" value="{{ params.telegram_token }}">
-                                        <small class="form-text text-muted">Get this from BotFather</small>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="telegram_chat_id" class="form-label">Chat ID</label>
-                                        <input type="text" class="form-control" id="telegram_chat_id"
-                                               name="telegram_chat_id" value="{{ params.telegram_chat_id }}">
-                                        <small class="form-text text-muted">The chat ID where notifications will be
-                                            sent</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-header d-flex align-items-center">
-                                    <i class="bi bi-rss me-2 text-info"></i>
-                                    <h5 class="card-title mb-0">RSS Feed</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <div class="form-check form-switch">
-                                            {% if params.rss_enabled == 'True' %}
-                                            <input class="form-check-input" type="checkbox" id="rss_enabled"
-                                                   name="rss_enabled" checked>
-                                            {% else %}
-                                            <input class="form-check-input" type="checkbox" id="rss_enabled"
-                                                   name="rss_enabled">
-                                            {% endif %}
-                                            <label class="form-check-label" for="rss_enabled">
-                                                Auto Start
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="rss_port" class="form-label">Port</label>
-                                        <input type="number" class="form-control" id="rss_port" name="rss_port"
-                                               value="{{ params.rss_port }}">
-                                        <small class="form-text text-muted">The port on which the RSS feed will be
-                                            served</small>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="rss_max_items" class="form-label">Maximum Items</label>
-                                        <input type="number" class="form-control" id="rss_max_items"
-                                               name="rss_max_items" value="{{ params.rss_max_items }}">
-                                        <small class="form-text text-muted">Maximum number of items to keep in the RSS
-                                            feed</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="card h-100">
-                                <div class="card-header d-flex align-items-center">
-                                    <i class="bi bi-shield-lock me-2 text-info"></i>
-                                    <h5 class="card-title mb-0">Proxy Settings</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <div class="form-check form-switch">
-                                                    {% if params.check_proxies == 'True' %}
-                                                    <input class="form-check-input" type="checkbox" id="check_proxies"
-                                                           name="check_proxies" checked>
-                                                    {% else %}
-                                                    <input class="form-check-input" type="checkbox" id="check_proxies"
-                                                           name="check_proxies">
-                                                    {% endif %}
-                                                    <label class="form-check-label" for="check_proxies">
-                                                        Check Proxies
-                                                    </label>
-                                                    <small class="form-text text-muted d-block">Verify if proxies are
-                                                        working before using them</small>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="proxy_list" class="form-label">Proxy List</label>
-                                                <textarea class="form-control" id="proxy_list" name="proxy_list"
-                                                          rows="3">{{ params.proxy_list }}</textarea>
-                                                <small class="form-text text-muted">List of proxies separated by
-                                                    semicolons (;)<br>
-                                                    Format: http://ip:port or ip:port</small>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="proxy_list_link" class="form-label">Proxy List Link</label>
-                                                <input type="text" class="form-control" id="proxy_list_link"
-                                                       name="proxy_list_link" value="{{ params.proxy_list_link }}">
-                                                <small class="form-text text-muted">URL to fetch proxies from (one proxy
-                                                    per line)</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-4">
-                        <div class="col-md-12">
-                            <div class="card h-100">
-                                <div class="card-header d-flex align-items-center">
-                                    <i class="bi bi-gear-wide-connected me-2 text-info"></i>
-                                    <h5 class="card-title mb-0">Advanced Settings</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="message_template" class="form-label">Notification Message
-                                                    Template</label>
-                                                <textarea class="form-control" id="message_template"
-                                                          name="message_template"
-                                                          rows="6">{{ params.message_template }}</textarea>
-                                                <small class="form-text text-muted">Template for notification messages.
-                                                    Available variables: {title}, {price}, {brand}, {image}</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="user_agents" class="form-label">User Agents</label>
-                                                <textarea class="form-control" id="user_agents" name="user_agents"
-                                                          rows="5">{{ params.user_agents }}</textarea>
-                                                <small class="form-text text-muted">List of user agents for HTTP
-                                                    requests (JSON format)</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12">
-                                            <div class="mb-3">
-                                                <label for="default_headers" class="form-label">Default Headers</label>
-                                                <textarea class="form-control" id="default_headers"
-                                                          name="default_headers"
-                                                          rows="3">{{ params.default_headers }}</textarea>
-                                                <small class="form-text text-muted">Default headers for HTTP requests
-                                                    (JSON format)</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12">
-                            <button type="submit" class="btn btn-primary">Save Configuration</button>
-                        </div>
-                    </div>
-                </form>
+            <div>
+                <label for="banwords-input" class="form-label">Banwords</label>
+                <div class="input-group mb-2">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="banwords-input"
+                        placeholder="Enter a word to ban"
+                    />
+                    <button
+                        class="btn btn-outline-secondary"
+                        type="button"
+                        id="add-banword-btn"
+                    >
+                        <i class="bi bi-plus-lg"></i> Add
+                    </button>
+                </div>
+                <div
+                    id="banwords-container"
+                    class="d-flex flex-wrap mb-2"
+                ></div>
+                <input
+                    type="hidden"
+                    id="banwords"
+                    name="banwords"
+                    value="{{ params.banwords }}"
+                />
+                <div class="form-text">
+                    Items with these words in their titles will be ignored
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-toggles me-2 text-info"></i>
-                <h5 class="card-title mb-0">Process Control</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="mb-0">Telegram Bot</h6>
-                                <small class="text-muted process-status" data-process="telegram">Checking
-                                    status...</small>
-                            </div>
-                            <div>
-                                <button class="btn btn-success process-control" data-process="telegram"
-                                        data-action="start">
-                                    <i class="bi bi-play-fill"></i> Start
-                                </button>
-                                <button class="btn btn-danger process-control" data-process="telegram"
-                                        data-action="stop">
-                                    <i class="bi bi-stop-fill"></i> Stop
-                                </button>
-                            </div>
+    <!-- Telegram & RSS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i
+                        class="bi bi-telegram me-2"
+                        style="color: var(--muted-foreground)"
+                    ></i
+                    >Telegram Bot
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {% if params.telegram_enabled == 'True' %}
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="telegram_enabled"
+                                name="telegram_enabled"
+                                checked
+                            />
+                            {% else %}
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="telegram_enabled"
+                                name="telegram_enabled"
+                            />
+                            {% endif %}
+                            <label
+                                class="form-check-label"
+                                for="telegram_enabled"
+                                >Auto Start</label
+                            >
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="mb-0">RSS Feed</h6>
-                                <small class="text-muted process-status" data-process="rss">Checking status...</small>
-                            </div>
-                            <div>
-                                <button class="btn btn-success process-control" data-process="rss" data-action="start">
-                                    <i class="bi bi-play-fill"></i> Start
-                                </button>
-                                <button class="btn btn-danger process-control" data-process="rss" data-action="stop">
-                                    <i class="bi bi-stop-fill"></i> Stop
-                                </button>
-                            </div>
+                    <div class="mb-3">
+                        <label for="telegram_token" class="form-label"
+                            >Bot Token</label
+                        >
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="telegram_token"
+                            name="telegram_token"
+                            value="{{ params.telegram_token }}"
+                        />
+                        <div class="form-text">Get this from BotFather</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="telegram_chat_id" class="form-label"
+                            >Chat ID</label
+                        >
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="telegram_chat_id"
+                            name="telegram_chat_id"
+                            value="{{ params.telegram_chat_id }}"
+                        />
+                        <div class="form-text">Chat ID for notifications</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i
+                        class="bi bi-rss me-2"
+                        style="color: var(--muted-foreground)"
+                    ></i
+                    >RSS Feed
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {% if params.rss_enabled == 'True' %}
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="rss_enabled"
+                                name="rss_enabled"
+                                checked
+                            />
+                            {% else %}
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="rss_enabled"
+                                name="rss_enabled"
+                            />
+                            {% endif %}
+                            <label class="form-check-label" for="rss_enabled"
+                                >Auto Start</label
+                            >
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rss_port" class="form-label">Port</label>
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="rss_port"
+                            name="rss_port"
+                            value="{{ params.rss_port }}"
+                        />
+                        <div class="form-text">
+                            Port for the RSS feed server
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="rss_max_items" class="form-label"
+                            >Maximum Items</label
+                        >
+                        <input
+                            type="number"
+                            class="form-control"
+                            id="rss_max_items"
+                            name="rss_max_items"
+                            value="{{ params.rss_max_items }}"
+                        />
+                        <div class="form-text">
+                            Max items to keep in the RSS feed
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
+    <!-- Proxy Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i
+                class="bi bi-shield-lock me-2"
+                style="color: var(--muted-foreground)"
+            ></i
+            >Proxy Settings
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    {% if params.check_proxies == 'True' %}
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="check_proxies"
+                        name="check_proxies"
+                        checked
+                    />
+                    {% else %}
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="check_proxies"
+                        name="check_proxies"
+                    />
+                    {% endif %}
+                    <label class="form-check-label" for="check_proxies"
+                        >Check Proxies</label
+                    >
+                    <div class="form-text">
+                        Verify proxies are working before using them
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="proxy_list" class="form-label">Proxy List</label>
+                <textarea
+                    class="form-control"
+                    id="proxy_list"
+                    name="proxy_list"
+                    rows="3"
+                >
+{{ params.proxy_list }}</textarea
+                >
+                <div class="form-text">
+                    Semicolon-separated list (format: http://ip:port or ip:port)
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="proxy_list_link" class="form-label"
+                    >Proxy List Link</label
+                >
+                <input
+                    type="text"
+                    class="form-control"
+                    id="proxy_list_link"
+                    name="proxy_list_link"
+                    value="{{ params.proxy_list_link }}"
+                />
+                <div class="form-text">
+                    URL to fetch proxies from (one per line)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i
+                class="bi bi-gear-wide-connected me-2"
+                style="color: var(--muted-foreground)"
+            ></i
+            >Advanced Settings
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="message_template" class="form-label"
+                    >Notification Message Template</label
+                >
+                <textarea
+                    class="form-control"
+                    id="message_template"
+                    name="message_template"
+                    rows="6"
+                    style="
+                        font-family: ui-monospace, monospace;
+                        font-size: 0.8125rem;
+                    "
+                >
+{{ params.message_template }}</textarea
+                >
+                <div class="form-text">
+                    Variables: {title}, {price}, {brand}, {image}
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="user_agents" class="form-label">User Agents</label>
+                <textarea
+                    class="form-control"
+                    id="user_agents"
+                    name="user_agents"
+                    rows="5"
+                    style="
+                        font-family: ui-monospace, monospace;
+                        font-size: 0.8125rem;
+                    "
+                >
+{{ params.user_agents }}</textarea
+                >
+                <div class="form-text">JSON format</div>
+            </div>
+            <div class="mb-3">
+                <label for="default_headers" class="form-label"
+                    >Default Headers</label
+                >
+                <textarea
+                    class="form-control"
+                    id="default_headers"
+                    name="default_headers"
+                    rows="3"
+                    style="
+                        font-family: ui-monospace, monospace;
+                        font-size: 0.8125rem;
+                    "
+                >
+{{ params.default_headers }}</textarea
+                >
+                <div class="form-text">JSON format</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="d-flex justify-content-end mb-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i> Save Configuration
+        </button>
+    </div>
+</form>
+
+<!-- Process Control -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-toggles me-2" style="color: var(--muted-foreground)"></i
+        >Process Control
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.8125rem">
+                            Telegram Bot
+                        </div>
+                        <small
+                            class="text-muted process-status"
+                            data-process="telegram"
+                            >Checking status...</small
+                        >
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button
+                            class="btn btn-sm btn-success process-control"
+                            data-process="telegram"
+                            data-action="start"
+                        >
+                            <i class="bi bi-play-fill"></i> Start
+                        </button>
+                        <button
+                            class="btn btn-sm btn-outline-danger process-control"
+                            data-process="telegram"
+                            data-action="stop"
+                        >
+                            <i class="bi bi-stop-fill"></i> Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.8125rem">
+                            RSS Feed
+                        </div>
+                        <small
+                            class="text-muted process-status"
+                            data-process="rss"
+                            >Checking status...</small
+                        >
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button
+                            class="btn btn-sm btn-success process-control"
+                            data-process="rss"
+                            data-action="start"
+                        >
+                            <i class="bi bi-play-fill"></i> Start
+                        </button>
+                        <button
+                            class="btn btn-sm btn-outline-danger process-control"
+                            data-process="rss"
+                            data-action="stop"
+                        >
+                            <i class="bi bi-stop-fill"></i> Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener("DOMContentLoaded", function () {
         // Process control buttons
-        const processButtons = document.querySelectorAll('.process-control');
-        processButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                const process = this.getAttribute('data-process');
-                const action = this.getAttribute('data-action');
+        const processButtons = document.querySelectorAll(".process-control");
+        processButtons.forEach((button) => {
+            button.addEventListener("click", function () {
+                const process = this.getAttribute("data-process");
+                const action = this.getAttribute("data-action");
 
                 // Disable all buttons for this process
-                document.querySelectorAll(`.process-control[data-process="${process}"]`).forEach(btn => {
-                    btn.disabled = true;
-                });
+                document
+                    .querySelectorAll(
+                        `.process-control[data-process="${process}"]`,
+                    )
+                    .forEach((btn) => {
+                        btn.disabled = true;
+                    });
 
                 fetch(`/control/${process}/${action}`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json'
-                    }
+                        "Content-Type": "application/json",
+                    },
                 })
-                    .then(response => response.json())
-                    .then(data => {
+                    .then((response) => response.json())
+                    .then((data) => {
                         // Show alert
-                        const alertClass = data.status === 'success' ? 'success' :
-                            data.status === 'warning' ? 'warning' : 'danger';
+                        const alertClass =
+                            data.status === "success"
+                                ? "success"
+                                : data.status === "warning"
+                                  ? "warning"
+                                  : "danger";
 
-                        const alertDiv = document.createElement('div');
+                        const alertDiv = document.createElement("div");
                         alertDiv.className = `alert alert-${alertClass} alert-dismissible fade show flash-message`;
-                        alertDiv.setAttribute('role', 'alert');
+                        alertDiv.setAttribute("role", "alert");
                         alertDiv.innerHTML = `
                         ${data.message}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     `;
 
-                        document.querySelector('.flash-messages').appendChild(alertDiv);
+                        document
+                            .querySelector(".flash-messages")
+                            .appendChild(alertDiv);
 
                         // Auto-dismiss after 5 seconds
                         setTimeout(() => {
@@ -349,55 +482,71 @@
                         // Update status
                         checkProcessStatus();
                     })
-                    .catch(error => {
-                        console.error('Error:', error);
+                    .catch((error) => {
+                        console.error("Error:", error);
                         // Re-enable buttons
-                        document.querySelectorAll(`.process-control[data-process="${process}"]`).forEach(btn => {
-                            btn.disabled = false;
-                        });
+                        document
+                            .querySelectorAll(
+                                `.process-control[data-process="${process}"]`,
+                            )
+                            .forEach((btn) => {
+                                btn.disabled = false;
+                            });
                     });
             });
         });
 
         // Check process status
         function checkProcessStatus() {
-            fetch('/control/status', {
-                method: 'GET'
+            fetch("/control/status", {
+                method: "GET",
             })
-                .then(response => response.json())
-                .then(data => {
+                .then((response) => response.json())
+                .then((data) => {
                     // Update status text
-                    document.querySelector('.process-status[data-process="telegram"]').textContent =
-                        data.telegram ? 'Running' : 'Stopped';
-                    document.querySelector('.process-status[data-process="rss"]').textContent =
-                        data.rss ? 'Running' : 'Stopped';
+                    document.querySelector(
+                        '.process-status[data-process="telegram"]',
+                    ).textContent = data.telegram ? "Running" : "Stopped";
+                    document.querySelector(
+                        '.process-status[data-process="rss"]',
+                    ).textContent = data.rss ? "Running" : "Stopped";
 
                     // Update button visibility
-                    document.querySelector('.process-control[data-process="telegram"][data-action="start"]').style.display =
-                        data.telegram ? 'none' : 'inline-block';
-                    document.querySelector('.process-control[data-process="telegram"][data-action="stop"]').style.display =
-                        data.telegram ? 'inline-block' : 'none';
-                    document.querySelector('.process-control[data-process="rss"][data-action="start"]').style.display =
-                        data.rss ? 'none' : 'inline-block';
-                    document.querySelector('.process-control[data-process="rss"][data-action="stop"]').style.display =
-                        data.rss ? 'inline-block' : 'none';
+                    document.querySelector(
+                        '.process-control[data-process="telegram"][data-action="start"]',
+                    ).style.display = data.telegram ? "none" : "inline-block";
+                    document.querySelector(
+                        '.process-control[data-process="telegram"][data-action="stop"]',
+                    ).style.display = data.telegram ? "inline-block" : "none";
+                    document.querySelector(
+                        '.process-control[data-process="rss"][data-action="start"]',
+                    ).style.display = data.rss ? "none" : "inline-block";
+                    document.querySelector(
+                        '.process-control[data-process="rss"][data-action="stop"]',
+                    ).style.display = data.rss ? "inline-block" : "none";
 
                     // Re-enable buttons
-                    document.querySelectorAll('.process-control').forEach(btn => {
-                        btn.disabled = false;
-                    });
+                    document
+                        .querySelectorAll(".process-control")
+                        .forEach((btn) => {
+                            btn.disabled = false;
+                        });
                 })
-                .catch(error => {
-                    console.error('Error:', error);
+                .catch((error) => {
+                    console.error("Error:", error);
                     // Set status to unknown
-                    document.querySelectorAll('.process-status').forEach(status => {
-                        status.textContent = 'Unknown';
-                    });
+                    document
+                        .querySelectorAll(".process-status")
+                        .forEach((status) => {
+                            status.textContent = "Unknown";
+                        });
                     // Re-enable all buttons
-                    document.querySelectorAll('.process-control').forEach(btn => {
-                        btn.disabled = false;
-                        btn.style.display = 'inline-block';
-                    });
+                    document
+                        .querySelectorAll(".process-control")
+                        .forEach((btn) => {
+                            btn.disabled = false;
+                            btn.style.display = "inline-block";
+                        });
                 });
         }
 
@@ -405,33 +554,39 @@
         checkProcessStatus();
 
         // Banwords handling
-        const banwordsInput = document.getElementById('banwords-input');
-        const addBanwordBtn = document.getElementById('add-banword-btn');
-        const banwordsContainer = document.getElementById('banwords-container');
-        const banwordsHiddenInput = document.getElementById('banwords');
+        const banwordsInput = document.getElementById("banwords-input");
+        const addBanwordBtn = document.getElementById("add-banword-btn");
+        const banwordsContainer = document.getElementById("banwords-container");
+        const banwordsHiddenInput = document.getElementById("banwords");
 
         // Function to create a banword tag
         function createBanwordTag(word) {
             if (!word.trim()) return;
 
             // Check if the word already exists
-            const existingTags = banwordsContainer.querySelectorAll('.banword-tag');
+            const existingTags =
+                banwordsContainer.querySelectorAll(".banword-tag");
             for (let tag of existingTags) {
-                if (tag.dataset.word.toLowerCase() === word.toLowerCase().trim()) {
+                if (
+                    tag.dataset.word.toLowerCase() === word.toLowerCase().trim()
+                ) {
                     return; // Word already exists, don't add it again
                 }
             }
 
-            const tag = document.createElement('span');
-            tag.className = 'badge bg-secondary me-1 mb-1 banword-tag';
+            const tag = document.createElement("span");
+            tag.className = "banword-tag";
             tag.dataset.word = word.trim();
-            tag.innerHTML = `${word.trim()} <i class="bi bi-x-circle" style="cursor: pointer;"></i>`;
+            tag.innerHTML = `${word.trim()} <span class="remove-banword">&times;</span>`;
 
             // Add click event to remove the tag
-            tag.querySelector('i').addEventListener('click', function () {
-                tag.remove();
-                updateHiddenInput();
-            });
+            tag.querySelector(".remove-banword").addEventListener(
+                "click",
+                function () {
+                    tag.remove();
+                    updateHiddenInput();
+                },
+            );
 
             banwordsContainer.appendChild(tag);
             updateHiddenInput();
@@ -439,31 +594,31 @@
 
         // Function to update the hidden input with all banwords
         function updateHiddenInput() {
-            const tags = banwordsContainer.querySelectorAll('.banword-tag');
-            const words = Array.from(tags).map(tag => tag.dataset.word);
-            banwordsHiddenInput.value = words.join('|||');
+            const tags = banwordsContainer.querySelectorAll(".banword-tag");
+            const words = Array.from(tags).map((tag) => tag.dataset.word);
+            banwordsHiddenInput.value = words.join("|||");
         }
 
         // Add banword when clicking the Add button
-        addBanwordBtn.addEventListener('click', function () {
+        addBanwordBtn.addEventListener("click", function () {
             createBanwordTag(banwordsInput.value);
-            banwordsInput.value = '';
+            banwordsInput.value = "";
             banwordsInput.focus();
         });
 
         // Add banword when pressing Enter in the input field
-        banwordsInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
+        banwordsInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
                 e.preventDefault();
                 createBanwordTag(banwordsInput.value);
-                banwordsInput.value = '';
+                banwordsInput.value = "";
             }
         });
 
         // Initialize banwords from the hidden input
         if (banwordsHiddenInput.value) {
-            const initialBanwords = banwordsHiddenInput.value.split('|||');
-            initialBanwords.forEach(word => {
+            const initialBanwords = banwordsHiddenInput.value.split("|||");
+            initialBanwords.forEach((word) => {
                 if (word.trim()) {
                     createBanwordTag(word);
                 }

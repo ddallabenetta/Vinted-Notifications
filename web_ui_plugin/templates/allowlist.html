@@ -1,136 +1,221 @@
-{% extends "base.html" %}
-
-{% block title %}Allowlist - Vinted Notifications{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Country Allowlist</h1>
+{% extends "base.html" %} {% block title %}Allowlist - Vinted Notifications{%
+endblock %} {% block content %}
+<div class="page-header pt-3 pb-2 mb-3">
+    <h1>Country Allowlist</h1>
+    <p>Filter items by seller country</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-plus-circle me-2 text-info"></i>
-                <h5 class="card-title mb-0">Add Country</h5>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Add Country -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i
+                    class="bi bi-plus-circle me-2"
+                    style="color: var(--muted-foreground)"
+                ></i
+                >Add Country
             </div>
             <div class="card-body">
                 <form action="/add_country" method="post">
-                    <div class="row">
-                        <div class="col-md-10">
-                            <div class="form-group">
-                                <label for="country">Country Code (2 letters)</label>
-                                <input type="text" class="form-control" id="country" name="country" placeholder="FR"
-                                       maxlength="2" required>
-                                <small class="form-text text-muted">Enter a 2-letter country code (e.g., FR for France,
-                                    DE for Germany)</small>
+                    <div class="row g-3 align-items-end">
+                        <div class="col">
+                            <label for="country" class="form-label"
+                                >Country Code</label
+                            >
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="country"
+                                name="country"
+                                placeholder="FR"
+                                maxlength="2"
+                                required
+                                style="text-transform: uppercase"
+                            />
+                            <div class="form-text">
+                                2-letter ISO code (e.g. FR, DE, IT)
                             </div>
                         </div>
-                        <div class="col-md-2 d-flex align-items-center">
-                            <button type="submit" class="btn btn-primary w-100">Add Country</button>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-lg me-1"></i> Add
+                            </button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-md-12">
+        <!-- Current Allowlist -->
         <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-globe me-2 text-info"></i>
-                <h5 class="card-title mb-0">Current Allowlist</h5>
+            <div
+                class="card-header d-flex justify-content-between align-items-center"
+            >
+                <span
+                    ><i
+                        class="bi bi-globe me-2"
+                        style="color: var(--muted-foreground)"
+                    ></i
+                    >Current Allowlist</span
+                >
+                {% if countries %}
+                <span class="badge bg-secondary">{{ countries|length }}</span>
+                {% endif %}
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 {% if countries %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0">
                         <thead>
-                        <tr>
-                            <th>Country Code</th>
-                            <th>Actions</th>
-                        </tr>
+                            <tr>
+                                <th>Country Code</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        {% for country in countries %}
-                        <tr>
-                            <td>{{ country }}</td>
-                            <td>
-                                <form action="/remove_country/{{ country }}" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Remove
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                            {% for country in countries %}
+                            <tr>
+                                <td style="font-weight: 600">{{ country }}</td>
+                                <td class="text-end">
+                                    <form
+                                        action="/remove_country/{{ country }}"
+                                        method="post"
+                                        class="d-inline"
+                                    >
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-danger"
+                                        >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3">
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal"
-                            data-bs-target="#clearAllowlistModal">
-                        <i class="bi bi-trash"></i> Clear Allowlist
-                    </button>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem">
+                    <i
+                        class="bi bi-globe d-block"
+                        style="font-size: 1.5rem; opacity: 0.3"
+                    ></i>
+                    <span style="font-size: 0.8125rem"
+                        >No countries in the allowlist. Items from all countries
+                        will be shown.</span
+                    >
+                </div>
+                {% endif %}
+            </div>
+            {% if countries %}
+            <div class="card-footer d-flex justify-content-end">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#clearAllowlistModal"
+                >
+                    <i class="bi bi-trash me-1"></i> Clear All
+                </button>
 
-                    <!-- Clear Allowlist Modal -->
-                    <div class="modal fade" id="clearAllowlistModal" tabindex="-1"
-                         aria-labelledby="clearAllowlistModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="clearAllowlistModalLabel">Confirm Clearing
-                                        Allowlist</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    Are you sure you want to clear the entire allowlist? This will allow items from all
-                                    countries.
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                <!-- Clear Allowlist Modal -->
+                <div
+                    class="modal fade"
+                    id="clearAllowlistModal"
+                    tabindex="-1"
+                    aria-labelledby="clearAllowlistModalLabel"
+                    aria-hidden="true"
+                >
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5
+                                    class="modal-title"
+                                    id="clearAllowlistModalLabel"
+                                >
+                                    <i
+                                        class="bi bi-exclamation-triangle me-2"
+                                        style="color: var(--destructive)"
+                                    ></i
+                                    >Clear Allowlist
+                                </h5>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to clear the entire
+                                allowlist? This will allow items from all
+                                countries.
+                            </div>
+                            <div class="modal-footer">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Cancel
+                                </button>
+                                <form
+                                    action="/clear_allowlist"
+                                    method="post"
+                                    class="d-inline"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="btn btn-danger"
+                                    >
+                                        Clear Allowlist
                                     </button>
-                                    <form action="/clear_allowlist" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">Clear Allowlist</button>
-                                    </form>
-                                </div>
+                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% else %}
-                <div class="alert alert-info show">
-                    <i class="bi bi-info-circle"></i> No countries in the allowlist. Items from all countries will be
-                    shown.
-                </div>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-info-circle me-2 text-info"></i>
-                <h5 class="card-title mb-0">About Country Allowlist</h5>
+    <!-- Info Panel -->
+    <div class="col-lg-4">
+        <div class="info-box">
+            <div
+                style="
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    color: var(--foreground);
+                "
+            >
+                <i class="bi bi-info-circle me-1"></i> How it works
             </div>
-            <div class="card-body">
-                <p>The country allowlist allows you to filter items based on the seller's country. Only items from
-                    sellers in the allowed countries will be shown.</p>
-                <p>If the allowlist is empty, items from all countries will be shown.</p>
-                <p>Country codes are 2-letter ISO codes, such as:</p>
-                <ul>
-                    <li><strong>FR</strong> - France</li>
-                    <li><strong>DE</strong> - Germany</li>
-                    <li><strong>ES</strong> - Spain</li>
-                    <li><strong>IT</strong> - Italy</li>
-                    <li><strong>GB</strong> - United Kingdom</li>
-                </ul>
+            <p class="mb-2">
+                The allowlist filters items by seller country. Only items from
+                sellers in allowed countries will be shown.
+            </p>
+            <p class="mb-2">
+                If the list is empty, items from all countries are shown.
+            </p>
+            <div
+                style="
+                    font-weight: 500;
+                    margin-bottom: 0.375rem;
+                    color: var(--foreground);
+                "
+            >
+                Common codes:
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+                <span class="badge bg-secondary">FR</span>
+                <span class="badge bg-secondary">DE</span>
+                <span class="badge bg-secondary">ES</span>
+                <span class="badge bg-secondary">IT</span>
+                <span class="badge bg-secondary">GB</span>
             </div>
         </div>
     </div>

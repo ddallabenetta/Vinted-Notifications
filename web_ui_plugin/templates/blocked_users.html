@@ -1,135 +1,229 @@
-{% extends "base.html" %}
-
-{% block title %}Blocked Users - Vinted Notifications{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Blocked Users</h1>
+{% extends "base.html" %} {% block title %}Blocked Users - Vinted
+Notifications{% endblock %} {% block content %}
+<div class="page-header pt-3 pb-2 mb-3">
+    <h1>Blocked Users</h1>
+    <p>Block specific sellers from notifications</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-person-x me-2 text-info"></i>
-                <h5 class="card-title mb-0">Block a User</h5>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <!-- Block a User -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i
+                    class="bi bi-person-x me-2"
+                    style="color: var(--muted-foreground)"
+                ></i
+                >Block a User
             </div>
             <div class="card-body">
                 <form action="/add_blocked_user" method="post">
-                    <div class="row">
-                        <div class="col-md-10">
-                            <div class="form-group">
-                                <label for="username">Vinted Username</label>
-                                <input type="text" class="form-control" id="username" name="username"
-                                       placeholder="username" required>
-                                <small class="form-text text-muted">Enter the Vinted username of the seller you want to
-                                    block (e.g., from the profile URL /member/12345678-<strong>username</strong>)</small>
+                    <div class="row g-3 align-items-end">
+                        <div class="col">
+                            <label for="username" class="form-label"
+                                >Vinted Username</label
+                            >
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="username"
+                                name="username"
+                                placeholder="username"
+                                required
+                            />
+                            <div class="form-text">
+                                From the profile URL: /member/12345678-<strong
+                                    >username</strong
+                                >
                             </div>
                         </div>
-                        <div class="col-md-2 d-flex align-items-center">
-                            <button type="submit" class="btn btn-primary w-100">Block User</button>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-x me-1"></i> Block
+                            </button>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-md-12">
+        <!-- Blocked Users List -->
         <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-person-x-fill me-2 text-info"></i>
-                <h5 class="card-title mb-0">Blocked Users List</h5>
+            <div
+                class="card-header d-flex justify-content-between align-items-center"
+            >
+                <span
+                    ><i
+                        class="bi bi-person-x-fill me-2"
+                        style="color: var(--muted-foreground)"
+                    ></i
+                    >Blocked Users</span
+                >
+                {% if users %}
+                <span class="badge bg-secondary">{{ users|length }}</span>
+                {% endif %}
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 {% if users %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover mb-0">
                         <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Actions</th>
-                        </tr>
+                            <tr>
+                                <th>Username</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        {% for username in users %}
-                        <tr>
-                            <td>{{ username }}</td>
-                            <td>
-                                <form action="/remove_blocked_user/{{ username }}" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Remove
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                            {% for username in users %}
+                            <tr>
+                                <td style="font-weight: 500">{{ username }}</td>
+                                <td class="text-end">
+                                    <form
+                                        action="/remove_blocked_user/{{ username }}"
+                                        method="post"
+                                        class="d-inline"
+                                    >
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-danger"
+                                        >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3">
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal"
-                            data-bs-target="#clearBlockedUsersModal">
-                        <i class="bi bi-trash"></i> Clear All
-                    </button>
+                {% else %}
+                <div class="empty-state" style="padding: 2rem">
+                    <i
+                        class="bi bi-person-x d-block"
+                        style="font-size: 1.5rem; opacity: 0.3"
+                    ></i>
+                    <span style="font-size: 0.8125rem"
+                        >No blocked users. Items from all sellers will be
+                        shown.</span
+                    >
+                </div>
+                {% endif %}
+            </div>
+            {% if users %}
+            <div class="card-footer d-flex justify-content-end">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#clearBlockedUsersModal"
+                >
+                    <i class="bi bi-trash me-1"></i> Clear All
+                </button>
 
-                    <!-- Clear Blocked Users Modal -->
-                    <div class="modal fade" id="clearBlockedUsersModal" tabindex="-1"
-                         aria-labelledby="clearBlockedUsersModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="clearBlockedUsersModalLabel">Confirm Clearing
-                                        Blocked Users</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    Are you sure you want to clear the entire blocked users list? Items from all
-                                    users will be shown again.
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                <!-- Clear Blocked Users Modal -->
+                <div
+                    class="modal fade"
+                    id="clearBlockedUsersModal"
+                    tabindex="-1"
+                    aria-labelledby="clearBlockedUsersModalLabel"
+                    aria-hidden="true"
+                >
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5
+                                    class="modal-title"
+                                    id="clearBlockedUsersModalLabel"
+                                >
+                                    <i
+                                        class="bi bi-exclamation-triangle me-2"
+                                        style="color: var(--destructive)"
+                                    ></i
+                                    >Clear Blocked Users
+                                </h5>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Close"
+                                ></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to clear the entire
+                                blocked users list? Items from all users will be
+                                shown again.
+                            </div>
+                            <div class="modal-footer">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal"
+                                >
+                                    Cancel
+                                </button>
+                                <form
+                                    action="/clear_blocked_users"
+                                    method="post"
+                                    class="d-inline"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="btn btn-danger"
+                                    >
+                                        Clear All
                                     </button>
-                                    <form action="/clear_blocked_users" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">Clear All</button>
-                                    </form>
-                                </div>
+                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% else %}
-                <div class="alert alert-info show">
-                    <i class="bi bi-info-circle"></i> No blocked users. Items from all users will be shown.
-                </div>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-info-circle me-2 text-info"></i>
-                <h5 class="card-title mb-0">About Blocked Users</h5>
+    <!-- Info Panel -->
+    <div class="col-lg-4">
+        <div class="info-box">
+            <div
+                style="
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                    color: var(--foreground);
+                "
+            >
+                <i class="bi bi-info-circle me-1"></i> How it works
             </div>
-            <div class="card-body">
-                <p>The blocked users list allows you to filter out items from specific Vinted sellers. Items from
-                    blocked users will be silently ignored and no notifications will be sent for them.</p>
-                <p>If the list is empty, items from all users will be shown.</p>
-                <p>To find a seller's username:</p>
-                <ul>
-                    <li>Go to the seller's profile on Vinted</li>
-                    <li>The URL will look like: <code>https://www.vinted.fr/member/12345678-<strong>username</strong></code></li>
-                    <li>The part after the dash is the username</li>
-                    <li>You can also find it displayed on their profile page</li>
-                </ul>
+            <p class="mb-2">
+                Items from blocked users will be silently ignored and no
+                notifications will be sent.
+            </p>
+            <p class="mb-2">
+                If the list is empty, items from all sellers are shown.
+            </p>
+            <div
+                style="
+                    font-weight: 500;
+                    margin-bottom: 0.375rem;
+                    color: var(--foreground);
+                "
+            >
+                Finding a username:
             </div>
+            <p class="mb-1" style="font-size: 0.75rem">
+                Go to the seller's Vinted profile. The URL format is:
+            </p>
+            <code
+                style="
+                    font-size: 0.7rem;
+                    background: var(--secondary);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: var(--radius-sm);
+                    display: inline-block;
+                "
+            >
+                vinted.fr/member/12345678-<strong>username</strong>
+            </code>
         </div>
     </div>
 </div>

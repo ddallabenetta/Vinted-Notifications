@@ -1,199 +1,316 @@
-{% extends "base.html" %}
-
-{% block title %}Items - Vinted Notifications{% endblock %}
-
-{% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Items</h1>
+{% extends "base.html" %} {% block title %}Items - Vinted Notifications{%
+endblock %} {% block content %}
+<div class="page-header pt-3 pb-2 mb-3">
+    <h1>Items</h1>
+    <p>Browse items found by your monitored queries</p>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex align-items-center">
-                <i class="bi bi-funnel-fill me-2 text-info"></i>
-                <h5 class="card-title mb-0">Filter Items</h5>
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form action="/items" method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="query" class="form-label">Query</label>
+                    <select class="form-select" id="query" name="query">
+                        <option value="">All Queries</option>
+                        {% for query in queries %}
+                        <option
+                            value="{{ query.query_id }}"
+                            {%
+                            if
+                            selected_query=""
+                            ="query.query_id"
+                            %}selected{%
+                            endif
+                            %}
+                        >
+                            {{ query.display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="limit" class="form-label">Limit</label>
+                    <select class="form-select" id="limit" name="limit">
+                        <option
+                            value="10"
+                            {%
+                            if
+                            limit=""
+                            ="10"
+                            %}selected{%
+                            endif
+                            %}
+                        >
+                            10 items
+                        </option>
+                        <option
+                            value="25"
+                            {%
+                            if
+                            limit=""
+                            ="25"
+                            %}selected{%
+                            endif
+                            %}
+                        >
+                            25 items
+                        </option>
+                        <option
+                            value="50"
+                            {%
+                            if
+                            limit=""
+                            ="50"
+                            %}selected{%
+                            endif
+                            %}
+                        >
+                            50 items
+                        </option>
+                        <option
+                            value="100"
+                            {%
+                            if
+                            limit=""
+                            ="100"
+                            %}selected{%
+                            endif
+                            %}
+                        >
+                            100 items
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i> Filter
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
-                <form action="/items" method="get">
-                    <div class="row">
-                        <div class="col-md-5">
-                            <div class="form-group mb-3">
-                                <label for="query" class="form-label fw-semibold">Search by Query</label>
-                                <select class="form-select" id="query" name="query">
-                                    <option value="">All Queries</option>
-                                    {% for query in queries %}
-                                    <option value="{{ query.query_id }}" {% if selected_query== query.query_id
-                                            %}selected{%
-                                            endif %}>
-                                        {{ query.display }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-5">
-                            <div class="form-group mb-3">
-                                <label for="limit" class="form-label fw-semibold">Number of Items</label>
-                                <select class="form-select" id="limit" name="limit">
-                                    <option value="10" {% if limit== 10 %}selected{% endif %}>10 items</option>
-                                    <option value="25" {% if limit== 25 %}selected{% endif %}>25 items</option>
-                                    <option value="50" {% if limit== 50 %}selected{% endif %}>50 items</option>
-                                    <option value="100" {% if limit== 100 %}selected{% endif %}>100 items</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-center">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-search me-1"></i> Apply Filter
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        </form>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-box-seam me-2 text-info"></i>
-                    <h5 class="card-title mb-0">
-                        {% if selected_query %}
-                        Items for query: <span class="text-info">{{ selected_query_display if selected_query_display else selected_query }}</span>
-                        {% else %}
-                        All Items
-                        {% endif %}
-                    </h5>
-                </div>
-                <div class="btn-group" role="group" aria-label="View toggle">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="cardViewBtn">
-                        <i class="bi bi-grid-3x3-gap-fill me-1"></i> Cards
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="listViewBtn">
-                        <i class="bi bi-list-ul me-1"></i> List
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- Card View -->
-                <div class="row" id="cardView">
-                    {% for item in items %}
-                    <div class="col-md-3 col-lg-2 mb-4">
-                        <div class="card h-100">
-                            {% if item.photo_url %}
-                            <div class="position-relative">
-                                <img src="{{ item.photo_url }}" class="card-img-top" alt="{{ item.title }}">
-                                <span class="position-absolute top-0 end-0 m-2 badge bg-primary d-flex align-items-center"><i
-                                        class="bi bi-search me-1"></i> {{ item.query|truncate(20) }}</span>
-                            </div>
-                            {% else %}
-                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center position-relative">
-                                <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
-                                <span class="position-absolute top-0 end-0 m-2 badge bg-primary d-flex align-items-center"><i
-                                        class="bi bi-search me-1"></i> {{ item.query|truncate(20) }}</span>
-                            </div>
-                            {% endif %}
-                            <div class="card-body p-3">
-                                <h6 class="card-title mb-2">{{ item.title }}</h6>
-                                <p class="card-text mb-1">
-                                    <span class="fw-bold text-dark" style="font-size: 1.1rem;">{{ item.price }} {{ item.currency }}</span>
-                                </p>
-                                <p class="card-text small text-muted mb-0">
-                                    <i class="bi bi-calendar me-1"></i> {{ item.timestamp }}
-                                </p>
-                            </div>
-                            <div class="card-footer bg-white p-3">
-                                <a href="{{ item.url }}" target="_blank" class="btn btn-primary w-100">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i> View on Vinted
-                                </a>
-                            </div>
+<!-- Items -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>
+            {% if selected_query %}
+            <i
+                class="bi bi-box-seam me-2"
+                style="color: var(--muted-foreground)"
+            ></i>
+            Items for:
+            <strong
+                >{{ selected_query_display if selected_query_display else
+                selected_query }}</strong
+            >
+            {% else %}
+            <i
+                class="bi bi-box-seam me-2"
+                style="color: var(--muted-foreground)"
+            ></i
+            >All Items {% endif %}
+        </span>
+        <div class="btn-group" role="group" aria-label="View toggle">
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                id="cardViewBtn"
+            >
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+            </button>
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                id="listViewBtn"
+            >
+                <i class="bi bi-list-ul"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Card View -->
+        <div class="row g-3" id="cardView">
+            {% for item in items %}
+            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                <div class="item-card h-100 position-relative">
+                    {% if item.photo_url %}
+                    <img
+                        src="{{ item.photo_url }}"
+                        class="card-img-top"
+                        alt="{{ item.title }}"
+                    />
+                    {% else %}
+                    <div
+                        class="card-img-top d-flex align-items-center justify-content-center"
+                        style="height: 180px; background: var(--muted)"
+                    >
+                        <i
+                            class="bi bi-image"
+                            style="
+                                font-size: 1.5rem;
+                                color: var(--muted-foreground);
+                            "
+                        ></i>
+                    </div>
+                    {% endif %}
+                    <span class="query-badge"
+                        >{{ item.query|truncate(20) }}</span
+                    >
+                    <div class="card-body">
+                        <div class="card-title">{{ item.title }}</div>
+                        <div class="item-price">
+                            {{ item.price }} {{ item.currency }}
+                        </div>
+                        <div class="item-time">
+                            <i class="bi bi-clock me-1"></i>{{ item.timestamp }}
                         </div>
                     </div>
-                    {% else %}
-                    <div class="col-12 text-center py-5">
-                        <p class="text-muted">No items found</p>
+                    <div class="card-footer">
+                        <a
+                            href="{{ item.url }}"
+                            target="_blank"
+                            class="btn btn-sm btn-outline-secondary w-100"
+                        >
+                            <i class="bi bi-box-arrow-up-right me-1"></i> View
+                            on Vinted
+                        </a>
                     </div>
-                    {% endfor %}
-                </div>
-
-                <!-- List View -->
-                <div class="table-responsive" id="listView" style="display: none;">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                        <tr>
-                            <th>Image</th>
-                            <th>Title</th>
-                            <th>Price</th>
-                            <th>Query</th>
-                            <th>Date</th>
-                            <th>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {% for item in items %}
-                        <tr>
-                            <td style="width: 60px;">
-                                {% if item.photo_url %}
-                                <img src="{{ item.photo_url }}" alt="{{ item.title }}" class="img-thumbnail"
-                                     style="width: 50px; height: 50px; object-fit: cover;">
-                                {% else %}
-                                <div class="bg-light d-flex align-items-center justify-content-center"
-                                     style="width: 50px; height: 50px;">
-                                    <i class="bi bi-image text-muted"></i>
-                                </div>
-                                {% endif %}
-                            </td>
-                            <td>{{ item.title }}</td>
-                            <td>{{ item.price }} {{ item.currency }}</td>
-                            <td>{{ item.query|truncate(30) }}</td>
-                            <td>{{ item.timestamp }}</td>
-                            <td>
-                                <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i> View on Vinted
-                                </a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center">No items found</td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
             </div>
+            {% else %}
+            <div class="col-12">
+                <div class="empty-state">
+                    <i class="bi bi-inbox d-block"></i>
+                    <span>No items found</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- List View -->
+        <div class="table-responsive" id="listView" style="display: none">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Title</th>
+                        <th>Price</th>
+                        <th>Query</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td style="width: 50px">
+                            {% if item.photo_url %}
+                            <img
+                                src="{{ item.photo_url }}"
+                                alt="{{ item.title }}"
+                                class="img-thumbnail"
+                                style="
+                                    width: 40px;
+                                    height: 40px;
+                                    object-fit: cover;
+                                "
+                            />
+                            {% else %}
+                            <div
+                                class="d-flex align-items-center justify-content-center"
+                                style="
+                                    width: 40px;
+                                    height: 40px;
+                                    background: var(--muted);
+                                    border-radius: var(--radius-sm);
+                                "
+                            >
+                                <i
+                                    class="bi bi-image"
+                                    style="color: var(--muted-foreground)"
+                                ></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td
+                            class="text-truncate"
+                            style="max-width: 250px; font-weight: 500"
+                        >
+                            {{ item.title }}
+                        </td>
+                        <td style="font-weight: 600">
+                            {{ item.price }} {{ item.currency }}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary"
+                                >{{ item.query|truncate(30) }}</span
+                            >
+                        </td>
+                        <td>
+                            <span
+                                style="
+                                    font-size: 0.75rem;
+                                    color: var(--muted-foreground);
+                                "
+                                >{{ item.timestamp }}</span
+                            >
+                        </td>
+                        <td>
+                            <a
+                                href="{{ item.url }}"
+                                target="_blank"
+                                class="btn btn-sm btn-outline-secondary"
+                            >
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td
+                            colspan="6"
+                            class="text-center py-4"
+                            style="color: var(--muted-foreground)"
+                        >
+                            No items found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const cardViewBtn = document.getElementById('cardViewBtn');
-        const listViewBtn = document.getElementById('listViewBtn');
-        const cardView = document.getElementById('cardView');
-        const listView = document.getElementById('listView');
+    document.addEventListener("DOMContentLoaded", function () {
+        const cardViewBtn = document.getElementById("cardViewBtn");
+        const listViewBtn = document.getElementById("listViewBtn");
+        const cardView = document.getElementById("cardView");
+        const listView = document.getElementById("listView");
 
         // Load saved view preference from localStorage
-        const viewPreference = localStorage.getItem('vintedViewPreference') || 'card';
+        const viewPreference =
+            localStorage.getItem("vintedViewPreference") || "card";
 
         // Function to set active view
         function setActiveView(view) {
-            if (view === 'card') {
-                cardView.style.display = 'flex';
-                listView.style.display = 'none';
-                cardViewBtn.classList.add('active');
-                listViewBtn.classList.remove('active');
-                localStorage.setItem('vintedViewPreference', 'card');
+            if (view === "card") {
+                cardView.style.display = "flex";
+                listView.style.display = "none";
+                cardViewBtn.classList.add("active");
+                listViewBtn.classList.remove("active");
+                localStorage.setItem("vintedViewPreference", "card");
             } else {
-                cardView.style.display = 'none';
-                listView.style.display = 'block';
-                listViewBtn.classList.add('active');
-                cardViewBtn.classList.remove('active');
-                localStorage.setItem('vintedViewPreference', 'list');
+                cardView.style.display = "none";
+                listView.style.display = "block";
+                listViewBtn.classList.add("active");
+                cardViewBtn.classList.remove("active");
+                localStorage.setItem("vintedViewPreference", "list");
             }
         }
 
@@ -201,12 +318,12 @@
         setActiveView(viewPreference);
 
         // Add event listeners
-        cardViewBtn.addEventListener('click', function () {
-            setActiveView('card');
+        cardViewBtn.addEventListener("click", function () {
+            setActiveView("card");
         });
 
-        listViewBtn.addEventListener('click', function () {
-            setActiveView('list');
+        listViewBtn.addEventListener("click", function () {
+            setActiveView("list");
         });
     });
 </script>
