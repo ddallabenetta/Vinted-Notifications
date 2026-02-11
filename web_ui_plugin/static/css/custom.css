@@ -24,7 +24,7 @@
     --ring: #18181b;
 
     /* Brand accent */
-    --teal: #09b1ba;
+    --teal: #027782;
     --teal-dark: #007782;
     --teal-light: #e0f7f8;
 
@@ -58,6 +58,53 @@
 
     /* Transitions */
     --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Dark Theme --- */
+[data-theme="dark"] {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #18181b;
+    --card-foreground: #fafafa;
+    --primary: #fafafa;
+    --primary-foreground: #18181b;
+    --secondary: #27272a;
+    --secondary-foreground: #fafafa;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --accent: #27272a;
+    --accent-foreground: #fafafa;
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    --border: #3f3f46;
+    --input: #3f3f46;
+    --ring: #d4d4d8;
+
+    --teal: #09b1ba;
+    --teal-dark: #0cc6d0;
+    --teal-light: #0c3a3d;
+
+    --success: #22c55e;
+    --success-light: #14291d;
+    --success-dark: #86efac;
+    --warning: #eab308;
+    --warning-light: #2e2509;
+    --warning-dark: #fde047;
+    --danger: #ef4444;
+    --danger-light: #331111;
+    --danger-dark: #fca5a5;
+    --info: #3b82f6;
+    --info-light: #111d33;
+    --info-dark: #93bbfd;
+
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md:
+        0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg:
+        0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+
+    color-scheme: dark;
 }
 
 /* --- Base / Typography --- */
@@ -923,6 +970,198 @@ main {
 
 .info-box strong {
     color: var(--foreground);
+}
+
+/* --- Dark Theme Overrides --- */
+[data-theme="dark"] .app-header {
+    background: #0e7c86 !important;
+}
+
+[data-theme="dark"] .btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+[data-theme="dark"] .btn-primary:hover,
+[data-theme="dark"] .btn-primary:focus {
+    background-color: #e4e4e7;
+    border-color: #e4e4e7;
+    color: var(--primary-foreground);
+}
+
+[data-theme="dark"] .btn-success:hover {
+    background-color: #16a34a;
+    border-color: #16a34a;
+}
+
+[data-theme="dark"] .btn-danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+[data-theme="dark"] .form-control:focus {
+    box-shadow: 0 0 0 2px rgba(212, 212, 216, 0.15);
+}
+
+[data-theme="dark"] .form-select:focus {
+    box-shadow: 0 0 0 2px rgba(212, 212, 216, 0.15);
+}
+
+[data-theme="dark"] .form-check-input:focus {
+    box-shadow: 0 0 0 2px rgba(9, 177, 186, 0.25);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--card);
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .modal-content {
+    background-color: var(--card);
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+[data-theme="dark"] .item-card .query-badge {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .table-danger {
+    --bs-table-bg: var(--danger-light) !important;
+    --bs-table-color: var(--danger-dark) !important;
+}
+
+[data-theme="dark"] .table-warning {
+    --bs-table-bg: var(--warning-light) !important;
+    --bs-table-color: var(--warning-dark) !important;
+}
+
+[data-theme="dark"] .footer {
+    background-color: var(--card);
+}
+
+[data-theme="dark"] ::selection {
+    background: rgba(9, 177, 186, 0.3);
+}
+
+/* Bootstrap body & text color overrides */
+[data-theme="dark"] body {
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--muted-foreground) !important;
+}
+
+[data-theme="dark"] .form-check-label {
+    color: var(--foreground);
+}
+
+/* Bootstrap table overrides */
+[data-theme="dark"] .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--foreground);
+    --bs-table-border-color: var(--border);
+    --bs-table-striped-color: var(--foreground);
+    --bs-table-hover-color: var(--foreground);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .table > thead > tr > th {
+    color: var(--muted-foreground);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .table > tbody > tr > td {
+    color: var(--foreground);
+    border-color: var(--border);
+}
+
+[data-theme="dark"] .table-hover > tbody > tr:hover > td {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Bootstrap dropdown overrides */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--card);
+    border-color: var(--border);
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+}
+
+[data-theme="dark"] .dropdown-item.active {
+    background-color: var(--teal);
+    color: #fff;
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-color: var(--border);
+}
+
+/* Bootstrap card text inheritance */
+[data-theme="dark"] .card {
+    color: var(--foreground);
+}
+
+[data-theme="dark"] .card-header {
+    color: var(--foreground);
+}
+
+/* Form text and labels */
+[data-theme="dark"] .form-text {
+    color: var(--muted-foreground) !important;
+}
+
+[data-theme="dark"] .form-label {
+    color: var(--foreground);
+}
+
+/* Code blocks */
+[data-theme="dark"] code {
+    background: var(--secondary);
+    color: var(--foreground);
+}
+
+/* Horizontal rules */
+[data-theme="dark"] hr {
+    border-color: var(--border);
+    opacity: 1;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 0.3rem 0.6rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* --- Responsive --- */

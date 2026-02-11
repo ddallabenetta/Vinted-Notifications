@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,6 +20,17 @@
             rel="stylesheet"
             href="{{ url_for('static', filename='css/custom.css') }}"
         />
+        <script>
+            (function () {
+                var saved = localStorage.getItem("theme");
+                var theme =
+                    saved ||
+                    (window.matchMedia("(prefers-color-scheme: dark)").matches
+                        ? "dark"
+                        : "light");
+                document.documentElement.setAttribute("data-theme", theme);
+            })();
+        </script>
         <style>
             html,
             body {
@@ -77,11 +88,19 @@
                     <a
                         href="{{ github_url }}"
                         target="_blank"
-                        class="btn btn-outline-light btn-sm header-btn"
+                        class="btn btn-outline-light btn-sm header-btn me-2"
                     >
                         <i class="bi bi-github me-1"></i> GitHub
                     </a>
                     {% endif %}
+                    <button
+                        id="themeToggle"
+                        class="theme-toggle"
+                        title="Toggle theme"
+                        aria-label="Toggle theme"
+                    >
+                        <i class="bi bi-moon-fill"></i>
+                    </button>
                 </div>
             </div>
         </header>
@@ -189,7 +208,7 @@
             {% endfor %} {% endif %} {% endwith %}
         </div>
 
-        <footer class="footer mt-auto py-3 bg-white">
+        <footer class="footer mt-auto py-3">
             <div class="container-fluid">
                 <div class="row align-items-center">
                     <div class="col-md-4">
@@ -240,7 +259,8 @@
                             <a
                                 href="{{ github_url }}/releases"
                                 target="_blank"
-                                class="badge bg-warning text-dark text-decoration-none"
+                                class="badge bg-warning text-decoration-none"
+                                style="color: var(--warning-dark)"
                             >
                                 <i class="bi bi-arrow-up-circle me-1"></i
                                 >Update: {{ latest_version }}
@@ -264,6 +284,40 @@
                         bsAlert.close();
                     });
                 }, 5000);
+
+                // Theme toggle
+                const toggle = document.getElementById("themeToggle");
+                const icon = toggle.querySelector("i");
+
+                function updateIcon(theme) {
+                    icon.className =
+                        theme === "dark" ? "bi bi-sun-fill" : "bi bi-moon-fill";
+                }
+
+                updateIcon(document.documentElement.getAttribute("data-theme"));
+
+                toggle.addEventListener("click", function () {
+                    var current =
+                        document.documentElement.getAttribute("data-theme");
+                    var next = current === "dark" ? "light" : "dark";
+                    document.documentElement.setAttribute("data-theme", next);
+                    localStorage.setItem("theme", next);
+                    updateIcon(next);
+                });
+
+                // Listen for system theme changes (only when no saved preference)
+                window
+                    .matchMedia("(prefers-color-scheme: dark)")
+                    .addEventListener("change", function (e) {
+                        if (!localStorage.getItem("theme")) {
+                            var theme = e.matches ? "dark" : "light";
+                            document.documentElement.setAttribute(
+                                "data-theme",
+                                theme,
+                            );
+                            updateIcon(theme);
+                        }
+                    });
             });
         </script>
         {% block scripts %}{% endblock %}
