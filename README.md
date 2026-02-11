@@ -3,7 +3,8 @@
 A real-time notification system for Vinted listings that works across all Vinted country domains. Get instant alerts
 when items matching your search criteria are posted.
 
-![Vinted-Notifications](https://github.com/user-attachments/assets/f2788511-5a8a-4a8d-8198-a4135081a3d8)
+<img width="1680" height="964" alt="Vinted-Notifications" src="https://github.com/user-attachments/assets/83cadffc-2f05-4f58-aa55-3efd819f5c72" />
+
 
 ---
 
