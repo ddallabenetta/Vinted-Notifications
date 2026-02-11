@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timezone
 from traceback import print_exc
 
 DB_PATH = "./data/vinted_notifications.db"
@@ -513,10 +514,9 @@ def get_items_per_day():
         min_timestamp, max_timestamp = cursor.fetchone()
 
         # Calculate number of days (add 1 to include both start and end days)
-        import datetime
-
-        min_date = datetime.datetime.fromtimestamp(min_timestamp).date()
-        max_date = datetime.datetime.fromtimestamp(max_timestamp).date()
+        # Timestamps are stored as UTC, convert them properly
+        min_date = datetime.fromtimestamp(min_timestamp, tz=timezone.utc).date()
+        max_date = datetime.fromtimestamp(max_timestamp, tz=timezone.utc).date()
         days_diff = (max_date - min_date).days + 1
 
         # Ensure at least 1 day to avoid division by zero

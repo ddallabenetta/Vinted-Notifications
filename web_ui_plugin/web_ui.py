@@ -8,6 +8,7 @@ from flask import Flask, flash, jsonify, redirect, render_template, request, url
 
 import core
 import db
+import timezone_utils
 from logger import get_logger
 
 # Get logger for this module
@@ -62,9 +63,7 @@ def index():
         # Get the last timestamp for this query
         try:
             last_timestamp = db.get_last_timestamp(query[0])
-            last_found_item = datetime.fromtimestamp(last_timestamp).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
         except Exception as e:
             logger.debug(f"Error getting last timestamp for query {query[0]}: {e}")
             last_found_item = "Never"
@@ -88,9 +87,7 @@ def index():
                 "title": item[1],
                 "price": item[2],
                 "currency": item[3],
-                "timestamp": datetime.fromtimestamp(item[4]).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                "timestamp": timezone_utils.format_local_timestamp(item[4]),
                 "query": item[5],
                 "photo_url": item[6],
                 "url": f"{urlparse(item[5]).scheme}://{urlparse(item[5]).netloc}/items/{item[0]}",
@@ -115,9 +112,7 @@ def index():
             "title": last_item[1],
             "price": last_item[2],
             "currency": last_item[3],
-            "timestamp": datetime.fromtimestamp(last_item[4]).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
+            "timestamp": timezone_utils.format_local_timestamp(last_item[4]),
             "query": last_item[5],
             "photo_url": last_item[6],
             "url": f"{urlparse(last_item[5]).scheme}://{urlparse(last_item[5]).netloc}/items/{last_item[0]}",
@@ -153,9 +148,7 @@ def queries():
         # Get the last timestamp for this query
         try:
             last_timestamp = db.get_last_timestamp(query[0])
-            last_found_item = datetime.fromtimestamp(last_timestamp).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
         except Exception as e:
             logger.debug(f"Error getting last timestamp for query {query[0]}: {e}")
             last_found_item = "Never"
@@ -256,9 +249,7 @@ def items():
                 "title": item[1],
                 "price": item[2],
                 "currency": item[3],
-                "timestamp": datetime.fromtimestamp(item[4]).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                "timestamp": timezone_utils.format_local_timestamp(item[4]),
                 # Ugly Ugly Ugly very Ugly eeew but I have to do a proper migration of existing db later else it'll break
                 # Eeew bad me >:c
                 "query": (
@@ -327,6 +318,7 @@ def update_config():
         "query_refresh_delay", request.form.get("query_refresh_delay", "60")
     )
     db.set_parameter("banwords", request.form.get("banwords", ""))
+    db.set_parameter("timezone", request.form.get("timezone", "Europe/Rome"))
 
     # Update Schedule parameters
     schedule_enabled = "schedule_enabled" in request.form

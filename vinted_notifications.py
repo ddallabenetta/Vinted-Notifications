@@ -6,6 +6,7 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import db
+import timezone_utils
 from logger import get_logger
 
 # Get logger for this module
@@ -102,7 +103,8 @@ def telegram_bot_process(queue):
 
 def is_within_schedule():
     """Check if the current time is within the configured active schedule.
-    Returns True if schedule is disabled or current time is within the active window."""
+    Returns True if schedule is disabled or current time is within the active window.
+    Uses the configured local timezone for accurate time comparison."""
     try:
         schedule_enabled = db.get_parameter("schedule_enabled") == "True"
         if not schedule_enabled:
@@ -113,9 +115,10 @@ def is_within_schedule():
         if not start_str or not end_str:
             return True
 
-        now = datetime.now().time()
-        start = datetime.strptime(start_str, "%H:%M").time()
-        end = datetime.strptime(end_str, "%H:%M").time()
+        # Use local timezone for schedule comparison
+        now = timezone_utils.local_now().time()
+        start = timezone_utils.parse_time_string(start_str)
+        end = timezone_utils.parse_time_string(end_str)
 
         if start <= end:
             # Normal range (e.g. 08:00 - 23:00)

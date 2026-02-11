@@ -17,7 +17,7 @@ Notifications{% endblock %} {% block content %}
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="items_per_query" class="form-label"
                         >Items Per Query</label
                     >
@@ -32,7 +32,7 @@ Notifications{% endblock %} {% block content %}
                         Maximum number of items to fetch per query
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="query_refresh_delay" class="form-label"
                         >Query Refresh Delay (seconds)</label
                     >
@@ -44,6 +44,20 @@ Notifications{% endblock %} {% block content %}
                         value="{{ params.query_refresh_delay }}"
                     />
                     <div class="form-text">Delay between query refreshes</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="timezone"
+                        name="timezone"
+                        value="{{ params.timezone }}"
+                        placeholder="Europe/Rome"
+                    />
+                    <div class="form-text">
+                        IANA timezone (e.g., Europe/Rome)
+                    </div>
                 </div>
             </div>
             <div>
