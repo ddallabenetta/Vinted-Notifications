@@ -1,5 +1,6 @@
 import os
 import re
+import signal
 from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 
@@ -438,6 +439,19 @@ def process_status():
     rss_running = db.get_parameter("rss_process_running") == "True"
 
     return jsonify({"telegram": telegram_running, "rss": rss_running})
+
+
+@app.route("/control/restart", methods=["POST"])
+def restart_service():
+    logger.info("Full service restart requested from Web UI")
+    try:
+        # Send SIGINT to the main (parent) process to trigger graceful shutdown.
+        # Docker restart policy or a process manager will restart the application.
+        os.kill(os.getppid(), signal.SIGINT)
+        return jsonify({"status": "success", "message": "Service restart initiated"})
+    except Exception as e:
+        logger.error(f"Error requesting restart: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": f"Restart failed: {e}"})
 
 
 @app.route("/allowlist")

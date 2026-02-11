@@ -497,6 +497,22 @@ Notifications{% endblock %} {% block content %}
                 </div>
             </div>
         </div>
+        <hr class="my-3" />
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <div style="font-weight: 600; font-size: 0.8125rem">
+                    Service
+                </div>
+                <small class="text-muted">Restart all processes</small>
+            </div>
+            <button
+                class="btn btn-sm btn-outline-danger"
+                type="button"
+                id="restart-service-btn"
+            >
+                <i class="bi bi-arrow-clockwise"></i> Restart
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %} {% block scripts %}
@@ -697,6 +713,64 @@ Notifications{% endblock %} {% block content %}
                 }
             });
         }
+
+        // Restart service button
+        const restartBtn = document.getElementById("restart-service-btn");
+        restartBtn.addEventListener("click", function () {
+            if (
+                !confirm(
+                    "Are you sure you want to restart the service? All processes will be stopped and restarted.",
+                )
+            ) {
+                return;
+            }
+            restartBtn.disabled = true;
+            restartBtn.innerHTML =
+                '<i class="bi bi-arrow-clockwise"></i> Restarting...';
+
+            fetch("/control/restart", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    const alertClass =
+                        data.status === "success" ? "success" : "danger";
+                    const alertDiv = document.createElement("div");
+                    alertDiv.className = `alert alert-${alertClass} alert-dismissible fade show flash-message`;
+                    alertDiv.setAttribute("role", "alert");
+                    alertDiv.innerHTML = `
+                        ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document
+                        .querySelector(".flash-messages")
+                        .appendChild(alertDiv);
+                    setTimeout(() => {
+                        const bsAlert = new bootstrap.Alert(alertDiv);
+                        bsAlert.close();
+                    }, 5000);
+                })
+                .catch(() => {
+                    // Connection lost is expected during restart
+                    const alertDiv = document.createElement("div");
+                    alertDiv.className =
+                        "alert alert-success alert-dismissible fade show flash-message";
+                    alertDiv.setAttribute("role", "alert");
+                    alertDiv.innerHTML = `
+                        Service is restarting...
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document
+                        .querySelector(".flash-messages")
+                        .appendChild(alertDiv);
+                })
+                .finally(() => {
+                    restartBtn.disabled = false;
+                    restartBtn.innerHTML =
+                        '<i class="bi bi-arrow-clockwise"></i> Restart';
+                });
+        });
     });
 </script>
 {% endblock %}
