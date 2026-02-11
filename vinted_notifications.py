@@ -1,13 +1,15 @@
 import multiprocessing
 import os
 import time
-from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
+import core
 import db
 import timezone_utils
 from logger import get_logger
+from rss_feed_plugin.rss_feed import rss_feed_process
+from web_ui_plugin.web_ui import web_ui_process
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -20,10 +22,6 @@ if not os.path.exists("./data/vinted_notifications.db"):
     os.makedirs("./data", exist_ok=True)
     db.create_or_update_sqlite_db("initial_db.sql")
     logger.info("Database created successfully")
-
-import core
-from rss_feed_plugin.rss_feed import rss_feed_process
-from web_ui_plugin.web_ui import web_ui_process
 
 # Global process references
 telegram_process = None
