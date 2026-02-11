@@ -408,6 +408,7 @@ def clear_item_queue(items_queue, new_items_queue):
                     photo_url=item.photo,
                     query_id=query_id,
                     currency=item.currency,
+                    username=item.raw_data.get("user", {}).get("login"),
                 )
 
 

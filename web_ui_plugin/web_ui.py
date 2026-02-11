@@ -82,6 +82,7 @@ def index():
     items = db.get_items(limit=10)
     formatted_items = []
     for item in items:
+        username = item[8] if len(item) > 8 else None
         formatted_items.append(
             {
                 "title": item[1],
@@ -94,6 +95,8 @@ def index():
                     f"{urlparse(item[5]).scheme}://"
                     f"{urlparse(item[5]).netloc}/items/{item[0]}"
                 ),
+                "username": username,
+                "is_blocked": db.is_user_blocked(username) if username else False,
             }
         )
 
@@ -250,6 +253,7 @@ def items():
     formatted_items = []
 
     for item in items_data:
+        username = item[8] if len(item) > 8 else None
         formatted_items.append(
             {
                 "title": item[1],
@@ -275,6 +279,8 @@ def items():
                     f"{urlparse(item[5]).netloc}/items/{item[0]}"
                 ),
                 "photo_url": item[6],
+                "username": username,
+                "is_blocked": db.is_user_blocked(username) if username else False,
             }
         )
 
@@ -552,6 +558,26 @@ def clear_blocked_users():
     flash("Blocked users list cleared", "success")
 
     return redirect(url_for("blocked_users"))
+
+
+@app.route("/api/toggle_block_user", methods=["POST"])
+def toggle_block_user():
+    username = request.form.get("username", "").strip()
+    if not username:
+        return jsonify({"status": "error", "message": "No username provided"}), 400
+
+    if db.is_user_blocked(username):
+        message, success = core.process_remove_blocked_user(username)
+        blocked = False
+    else:
+        message, success = core.process_add_blocked_user(username)
+        blocked = True
+
+    return jsonify({
+        "status": "success" if success else "error",
+        "message": message,
+        "blocked": blocked,
+    })
 
 
 @app.route("/logs")
