@@ -262,9 +262,13 @@ def items():
                 "query": (
                     item[7]
                     if item[7]
-                    else parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
-                    if parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
-                    else item[5]
+                    else (
+                        parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
+                        if parse_qs(urlparse(item[5]).query).get("search_text", [None])[
+                            0
+                        ]
+                        else item[5]
+                    )
                 ),
                 "url": (
                     f"{urlparse(item[5]).scheme}://"
