@@ -1,8 +1,11 @@
 import multiprocessing
-import time
 import os
-import db
+import time
+from datetime import datetime
+
 from apscheduler.schedulers.background import BackgroundScheduler
+
+import db
 from logger import get_logger
 
 # Get logger for this module
@@ -21,12 +24,12 @@ import core
 from rss_feed_plugin.rss_feed import rss_feed_process
 from web_ui_plugin.web_ui import web_ui_process
 
-
 # Global process references
 telegram_process = None
 rss_process = None
 scrape_process = None
 current_query_refresh_delay = None
+schedule_paused = False
 
 
 def scraper_process(items_queue):
@@ -97,6 +100,34 @@ def telegram_bot_process(queue):
         logger.error(f"Error in telegram bot process: {e}", exc_info=True)
 
 
+def is_within_schedule():
+    """Check if the current time is within the configured active schedule.
+    Returns True if schedule is disabled or current time is within the active window."""
+    try:
+        schedule_enabled = db.get_parameter("schedule_enabled") == "True"
+        if not schedule_enabled:
+            return True
+
+        start_str = db.get_parameter("schedule_start_time")
+        end_str = db.get_parameter("schedule_end_time")
+        if not start_str or not end_str:
+            return True
+
+        now = datetime.now().time()
+        start = datetime.strptime(start_str, "%H:%M").time()
+        end = datetime.strptime(end_str, "%H:%M").time()
+
+        if start <= end:
+            # Normal range (e.g. 08:00 - 23:00)
+            return start <= now <= end
+        else:
+            # Crosses midnight (e.g. 08:00 - 01:00)
+            return now >= start or now <= end
+    except Exception as e:
+        logger.error(f"Error checking schedule: {e}", exc_info=True)
+        return True  # Default to active on error
+
+
 def check_refresh_delay(items_queue):
     """Check if the query refresh delay has changed and update the scheduler if needed"""
     global scrape_process, current_query_refresh_delay
@@ -135,10 +166,31 @@ def check_refresh_delay(items_queue):
 
 
 def monitor_processes(items_queue, telegram_queue, rss_queue):
-    global telegram_process, rss_process
+    global telegram_process, rss_process, scrape_process, schedule_paused
 
-    # Check if the query refresh delay has changed
-    check_refresh_delay(items_queue)
+    # Check schedule
+    within_schedule = is_within_schedule()
+
+    if not within_schedule and not schedule_paused:
+        # Entering pause: stop the scraper
+        logger.info("Outside active schedule, pausing scraper")
+        if scrape_process is not None and scrape_process.is_alive():
+            scrape_process.terminate()
+            scrape_process.join()
+            scrape_process = None
+        schedule_paused = True
+    elif within_schedule and schedule_paused:
+        # Resuming: restart the scraper
+        logger.info("Within active schedule, resuming scraper")
+        scrape_process = multiprocessing.Process(
+            target=scraper_process, args=(items_queue,)
+        )
+        scrape_process.start()
+        schedule_paused = False
+
+    # Check if the query refresh delay has changed (only when not paused)
+    if not schedule_paused:
+        check_refresh_delay(items_queue)
 
     ### TELEGRAM ###
     # Check telegram process status
@@ -197,7 +249,6 @@ def plugin_checker():
 
 
 if __name__ == "__main__":
-
     # Run db migrations
     current_version = db.get_parameter("version")
     # Check if there is a file that starts with the current version in the migrations folder. We keep comparing until

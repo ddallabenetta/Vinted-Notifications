@@ -327,6 +327,16 @@ def update_config():
     )
     db.set_parameter("banwords", request.form.get("banwords", ""))
 
+    # Update Schedule parameters
+    schedule_enabled = "schedule_enabled" in request.form
+    db.set_parameter("schedule_enabled", str(schedule_enabled))
+    db.set_parameter(
+        "schedule_start_time", request.form.get("schedule_start_time", "08:00")
+    )
+    db.set_parameter(
+        "schedule_end_time", request.form.get("schedule_end_time", "01:00")
+    )
+
     # Update Proxy parameters
     check_proxies = "check_proxies" in request.form
     db.set_parameter("check_proxies", str(check_proxies))

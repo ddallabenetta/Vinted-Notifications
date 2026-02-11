@@ -80,6 +80,79 @@ Notifications{% endblock %} {% block content %}
         </div>
     </div>
 
+    <!-- Schedule Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i
+                class="bi bi-clock me-2"
+                style="color: var(--muted-foreground)"
+            ></i
+            >Schedule
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <div class="form-check form-switch">
+                    {% if params.schedule_enabled == 'True' %}
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="schedule_enabled"
+                        name="schedule_enabled"
+                        checked
+                    />
+                    {% else %}
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="schedule_enabled"
+                        name="schedule_enabled"
+                    />
+                    {% endif %}
+                    <label class="form-check-label" for="schedule_enabled"
+                        >Enable Schedule</label
+                    >
+                    <div class="form-text">
+                        When enabled, the bot will only be active during the
+                        configured time window
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="schedule_start_time" class="form-label"
+                        >Start Time</label
+                    >
+                    <input
+                        type="time"
+                        class="form-control"
+                        id="schedule_start_time"
+                        name="schedule_start_time"
+                        value="{{ params.schedule_start_time }}"
+                    />
+                    <div class="form-text">
+                        Time when the bot becomes active
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="schedule_end_time" class="form-label"
+                        >End Time</label
+                    >
+                    <input
+                        type="time"
+                        class="form-control"
+                        id="schedule_end_time"
+                        name="schedule_end_time"
+                        value="{{ params.schedule_end_time }}"
+                    />
+                    <div class="form-text">
+                        Time when the bot stops (supports crossing midnight,
+                        e.g. 08:00 - 01:00)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Telegram & RSS -->
     <div class="row g-3 mb-4">
         <div class="col-md-6">
