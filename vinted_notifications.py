@@ -62,8 +62,15 @@ def item_extractor(items_queue, new_items_queue):
     logger.info("Item extractor process started")
     try:
         while True:
-            # Check if there's an item in the queue
-            core.clear_item_queue(items_queue, new_items_queue)
+            try:
+                # Check if there's an item in the queue
+                core.clear_item_queue(items_queue, new_items_queue)
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception as e:
+                logger.error(
+                    f"Error in item extractor (will retry): {e}", exc_info=True
+                )
             time.sleep(0.1)  # Small sleep to prevent high CPU usage
     except (KeyboardInterrupt, SystemExit):
         logger.info("Consumer process stopped")
@@ -73,16 +80,21 @@ def dispatcher_function(input_queue, rss_queue, telegram_queue):
     logger.info("Dispatcher process started")
     try:
         while True:
-            # Get from input queue
-            item = input_queue.get()
-            # Send to RSS queue
-            rss_queue.put(item)
-            #
-            telegram_queue.put(item)
+            try:
+                # Get from input queue
+                item = input_queue.get()
+                # Send to RSS queue
+                rss_queue.put(item)
+                #
+                telegram_queue.put(item)
+            except (KeyboardInterrupt, SystemExit):
+                raise
+            except Exception as e:
+                logger.error(
+                    f"Error in dispatcher process (will retry): {e}", exc_info=True
+                )
     except (KeyboardInterrupt, SystemExit):
         logger.info("Dispatcher process stopped")
-    except Exception as e:
-        logger.error(f"Error in dispatcher process: {e}", exc_info=True)
 
 
 def telegram_bot_process(queue):
