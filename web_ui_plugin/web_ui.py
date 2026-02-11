@@ -90,7 +90,10 @@ def index():
                 "timestamp": timezone_utils.format_local_timestamp(item[4]),
                 "query": item[5],
                 "photo_url": item[6],
-                "url": f"{urlparse(item[5]).scheme}://{urlparse(item[5]).netloc}/items/{item[0]}",
+                "url": (
+                    f"{urlparse(item[5]).scheme}://"
+                    f"{urlparse(item[5]).netloc}/items/{item[0]}"
+                ),
             }
         )
 
@@ -115,7 +118,10 @@ def index():
             "timestamp": timezone_utils.format_local_timestamp(last_item[4]),
             "query": last_item[5],
             "photo_url": last_item[6],
-            "url": f"{urlparse(last_item[5]).scheme}://{urlparse(last_item[5]).netloc}/items/{last_item[0]}",
+            "url": (
+                f"{urlparse(last_item[5]).scheme}://"
+                f"{urlparse(last_item[5]).netloc}/items/{last_item[0]}"
+            ),
         }
     else:
         stats["last_item"] = None
@@ -250,7 +256,8 @@ def items():
                 "price": item[2],
                 "currency": item[3],
                 "timestamp": timezone_utils.format_local_timestamp(item[4]),
-                # Ugly Ugly Ugly very Ugly eeew but I have to do a proper migration of existing db later else it'll break
+                # Ugly Ugly Ugly very Ugly eeew but I have to do a proper
+                # migration of existing db later else it'll break
                 # Eeew bad me >:c
                 "query": (
                     item[7]
@@ -259,7 +266,10 @@ def items():
                     if parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
                     else item[5]
                 ),
-                "url": f"{urlparse(item[5]).scheme}://{urlparse(item[5]).netloc}/items/{item[0]}",
+                "url": (
+                    f"{urlparse(item[5]).scheme}://"
+                    f"{urlparse(item[5]).netloc}/items/{item[0]}"
+                ),
                 "photo_url": item[6],
             }
         )
@@ -369,7 +379,10 @@ def control_process(process_name, action):
                 return jsonify(
                     {
                         "status": "error",
-                        "message": "Please set Telegram token and chat ID in the configuration panel before starting the Telegram process",
+                        "message": (
+                            "Please set Telegram token and chat ID in the "
+                            "configuration panel before starting the Telegram process"
+                        ),
                     }
                 )
 
@@ -567,7 +580,10 @@ def api_logs():
 
             # Regular expression to parse log lines
             # Format: 2023-09-15 12:34:56,789 - module_name - LEVEL - Message
-            log_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - ([^-]+) - ([A-Z]+) - (.+)"
+            log_pattern = (
+                r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - "
+                r"([^-]+) - ([A-Z]+) - (.+)"
+            )
 
             current_entry = 0
 
