@@ -15,16 +15,7 @@ endblock %} {% block content %}
                     <select class="form-select" id="query" name="query">
                         <option value="">All Queries</option>
                         {% for query in queries %}
-                        <option
-                            value="{{ query.query_id }}"
-                            {%
-                            if
-                            selected_query=""
-                            ="query.query_id"
-                            %}selected{%
-                            endif
-                            %}
-                        >
+                        <option value="{{ query.query_id }}" {% if selected_query == query.query_id|string %}selected{% endif %}>
                             {{ query.display }}
                         </option>
                         {% endfor %}
@@ -33,54 +24,10 @@ endblock %} {% block content %}
                 <div class="col-md-3">
                     <label for="limit" class="form-label">Limit</label>
                     <select class="form-select" id="limit" name="limit">
-                        <option
-                            value="10"
-                            {%
-                            if
-                            limit=""
-                            ="10"
-                            %}selected{%
-                            endif
-                            %}
-                        >
-                            10 items
-                        </option>
-                        <option
-                            value="25"
-                            {%
-                            if
-                            limit=""
-                            ="25"
-                            %}selected{%
-                            endif
-                            %}
-                        >
-                            25 items
-                        </option>
-                        <option
-                            value="50"
-                            {%
-                            if
-                            limit=""
-                            ="50"
-                            %}selected{%
-                            endif
-                            %}
-                        >
-                            50 items
-                        </option>
-                        <option
-                            value="100"
-                            {%
-                            if
-                            limit=""
-                            ="100"
-                            %}selected{%
-                            endif
-                            %}
-                        >
-                            100 items
-                        </option>
+                        <option value="10" {% if limit == 10 %}selected{% endif %}>10 items</option>
+                        <option value="25" {% if limit == 25 %}selected{% endif %}>25 items</option>
+                        <option value="50" {% if limit == 50 %}selected{% endif %}>50 items</option>
+                        <option value="100" {% if limit == 100 %}selected{% endif %}>100 items</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -98,35 +45,18 @@ endblock %} {% block content %}
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>
             {% if selected_query %}
-            <i
-                class="bi bi-box-seam me-2"
-                style="color: var(--muted-foreground)"
-            ></i>
+            <i class="bi bi-box-seam me-2" style="color: var(--muted-foreground)"></i>
             Items for:
-            <strong
-                >{{ selected_query_display if selected_query_display else
-                selected_query }}</strong
-            >
+            <strong>{{ selected_query_display if selected_query_display else selected_query }}</strong>
             {% else %}
-            <i
-                class="bi bi-box-seam me-2"
-                style="color: var(--muted-foreground)"
-            ></i
-            >All Items {% endif %}
+            <i class="bi bi-box-seam me-2" style="color: var(--muted-foreground)"></i>All Items 
+            {% endif %}
         </span>
         <div class="btn-group" role="group" aria-label="View toggle">
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                id="cardViewBtn"
-            >
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="cardViewBtn">
                 <i class="bi bi-grid-3x3-gap-fill"></i>
             </button>
-            <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                id="listViewBtn"
-            >
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="listViewBtn">
                 <i class="bi bi-list-ul"></i>
             </button>
         </div>
@@ -138,45 +68,23 @@ endblock %} {% block content %}
             <div class="col-6 col-md-4 col-lg-3 col-xl-2">
                 <div class="item-card h-100 position-relative">
                     {% if item.photo_url %}
-                    <img
-                        src="{{ item.photo_url }}"
-                        class="card-img-top"
-                        alt="{{ item.title }}"
-                    />
+                    <img src="{{ item.photo_url }}" class="card-img-top" alt="{{ item.title }}" />
                     {% else %}
-                    <div
-                        class="card-img-top d-flex align-items-center justify-content-center"
-                        style="height: 180px; background: var(--muted)"
-                    >
-                        <i
-                            class="bi bi-image"
-                            style="
-                                font-size: 1.5rem;
-                                color: var(--muted-foreground);
-                            "
-                        ></i>
+                    <div class="card-img-top d-flex align-items-center justify-content-center" style="height: 180px; background: var(--muted)">
+                        <i class="bi bi-image" style="font-size: 1.5rem; color: var(--muted-foreground);"></i>
                     </div>
                     {% endif %}
-                    <span class="query-badge"
-                        >{{ item.query|truncate(20) }}</span
-                    >
+                    <span class="query-badge">{{ item.query|truncate(20) }}</span>
                     <div class="card-body">
                         <div class="card-title">{{ item.title }}</div>
-                        <div class="item-price">
-                            {{ item.price }} {{ item.currency }}
-                        </div>
+                        <div class="item-price">{{ item.price }} {{ item.currency }}</div>
                         <div class="item-time">
                             <i class="bi bi-clock me-1"></i>{{ item.timestamp }}
                         </div>
                     </div>
                     <div class="card-footer">
-                        <a
-                            href="{{ item.url }}"
-                            target="_blank"
-                            class="btn btn-sm btn-outline-secondary w-100"
-                        >
-                            <i class="bi bi-box-arrow-up-right me-1"></i> View
-                            on Vinted
+                        <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> View on Vinted
                         </a>
                     </div>
                 </div>
@@ -209,73 +117,30 @@ endblock %} {% block content %}
                     <tr>
                         <td style="width: 50px">
                             {% if item.photo_url %}
-                            <img
-                                src="{{ item.photo_url }}"
-                                alt="{{ item.title }}"
-                                class="img-thumbnail"
-                                style="
-                                    width: 40px;
-                                    height: 40px;
-                                    object-fit: cover;
-                                "
-                            />
+                            <img src="{{ item.photo_url }}" alt="{{ item.title }}" class="img-thumbnail" style="width: 40px; height: 40px; object-fit: cover;" />
                             {% else %}
-                            <div
-                                class="d-flex align-items-center justify-content-center"
-                                style="
-                                    width: 40px;
-                                    height: 40px;
-                                    background: var(--muted);
-                                    border-radius: var(--radius-sm);
-                                "
-                            >
-                                <i
-                                    class="bi bi-image"
-                                    style="color: var(--muted-foreground)"
-                                ></i>
+                            <div class="d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: var(--muted); border-radius: var(--radius-sm);">
+                                <i class="bi bi-image" style="color: var(--muted-foreground)"></i>
                             </div>
                             {% endif %}
                         </td>
-                        <td
-                            class="text-truncate"
-                            style="max-width: 250px; font-weight: 500"
-                        >
-                            {{ item.title }}
-                        </td>
-                        <td style="font-weight: 600">
-                            {{ item.price }} {{ item.currency }}
+                        <td class="text-truncate" style="max-width: 250px; font-weight: 500">{{ item.title }}</td>
+                        <td style="font-weight: 600">{{ item.price }} {{ item.currency }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.query|truncate(30) }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-secondary"
-                                >{{ item.query|truncate(30) }}</span
-                            >
+                            <span style="font-size: 0.75rem; color: var(--muted-foreground);">{{ item.timestamp }}</span>
                         </td>
                         <td>
-                            <span
-                                style="
-                                    font-size: 0.75rem;
-                                    color: var(--muted-foreground);
-                                "
-                                >{{ item.timestamp }}</span
-                            >
-                        </td>
-                        <td>
-                            <a
-                                href="{{ item.url }}"
-                                target="_blank"
-                                class="btn btn-sm btn-outline-secondary"
-                            >
+                            <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td
-                            colspan="6"
-                            class="text-center py-4"
-                            style="color: var(--muted-foreground)"
-                        >
+                        <td colspan="6" class="text-center py-4" style="color: var(--muted-foreground)">
                             No items found
                         </td>
                     </tr>
@@ -294,8 +159,7 @@ endblock %} {% block content %}
         const listView = document.getElementById("listView");
 
         // Load saved view preference from localStorage
-        const viewPreference =
-            localStorage.getItem("vintedViewPreference") || "card";
+        const viewPreference = localStorage.getItem("vintedViewPreference") || "card";
 
         // Function to set active view
         function setActiveView(view) {
