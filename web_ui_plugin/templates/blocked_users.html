@@ -23,14 +23,28 @@ Notifications{% endblock %} {% block content %}
                             <label for="username" class="form-label"
                                 >Vinted Username</label
                             >
-                            <input
-                                type="text"
-                                class="form-control"
-                                id="username"
-                                name="username"
-                                placeholder="username"
-                                required
-                            />
+                            <div style="position: relative">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="username"
+                                    name="username"
+                                    placeholder="username"
+                                    autocomplete="off"
+                                    required
+                                />
+                                <div
+                                    id="username-suggestions"
+                                    class="dropdown-menu"
+                                    style="
+                                        position: absolute;
+                                        width: 100%;
+                                        max-height: 200px;
+                                        overflow-y: auto;
+                                        display: none;
+                                    "
+                                ></div>
+                            </div>
                             <div class="form-text">
                                 From the profile URL: /member/12345678-<strong
                                     >username</strong
@@ -227,4 +241,81 @@ Notifications{% endblock %} {% block content %}
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const usernameInput = document.getElementById("username");
+        const suggestionsDiv = document.getElementById("username-suggestions");
+        let debounceTimer;
+
+        usernameInput.addEventListener("input", function () {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+
+            if (query.length === 0) {
+                suggestionsDiv.style.display = "none";
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(
+                    `/api/blocked_users/search?q=${encodeURIComponent(query)}`,
+                )
+                    .then((response) => response.json())
+                    .then((users) => {
+                        if (users.length === 0) {
+                            suggestionsDiv.style.display = "none";
+                            return;
+                        }
+
+                        suggestionsDiv.innerHTML = "";
+                        users.forEach((user) => {
+                            const item = document.createElement("a");
+                            item.className = "dropdown-item";
+                            item.href = "#";
+                            item.textContent = user;
+                            item.style.cursor = "pointer";
+
+                            // Show warning that user is already blocked
+                            const badge = document.createElement("span");
+                            badge.className = "badge bg-warning ms-2";
+                            badge.textContent = "Already blocked";
+                            item.appendChild(badge);
+
+                            item.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                usernameInput.value = user;
+                                suggestionsDiv.style.display = "none";
+                            });
+
+                            suggestionsDiv.appendChild(item);
+                        });
+
+                        suggestionsDiv.style.display = "block";
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching blocked users:", error);
+                        suggestionsDiv.style.display = "none";
+                    });
+            }, 300);
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener("click", function (e) {
+            if (
+                !usernameInput.contains(e.target) &&
+                !suggestionsDiv.contains(e.target)
+            ) {
+                suggestionsDiv.style.display = "none";
+            }
+        });
+
+        // Hide suggestions when input loses focus (with delay to allow clicking suggestions)
+        usernameInput.addEventListener("blur", function () {
+            setTimeout(() => {
+                suggestionsDiv.style.display = "none";
+            }, 200);
+        });
+    });
+</script>
 {% endblock %}

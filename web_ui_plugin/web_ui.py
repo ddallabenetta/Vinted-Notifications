@@ -500,6 +500,23 @@ def blocked_users():
     return render_template("blocked_users.html", users=users)
 
 
+@app.route("/api/blocked_users/search")
+def search_blocked_users():
+    query = request.args.get("q", "").strip().lower()
+    users = db.get_blocked_users()
+
+    if users == 0:
+        return jsonify([])
+
+    # Filter users based on the query
+    if query:
+        filtered_users = [user for user in users if query in user.lower()]
+    else:
+        filtered_users = users
+
+    return jsonify(filtered_users)
+
+
 @app.route("/add_blocked_user", methods=["POST"])
 def add_blocked_user():
     username = request.form.get("username", "").strip()
