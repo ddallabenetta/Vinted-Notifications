@@ -1,0 +1,7 @@
+services:
+  vinted-notifications:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vinted-notifications:local
+    read_only: false
