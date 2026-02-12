@@ -66,7 +66,10 @@ endblock %} {% block content %}
         <div class="row g-3" id="cardView">
             {% for item in items %}
             <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-                <div class="item-card h-100 position-relative">
+                <div class="item-card h-100 position-relative {% if item.is_blocked %}item-blocked{% endif %}">
+                    {% if item.is_blocked %}
+                    <span class="blocked-badge"><i class="bi bi-person-x"></i></span>
+                    {% endif %}
                     {% if item.photo_url %}
                     <img src="{{ item.photo_url }}" class="card-img-top" alt="{{ item.title }}" />
                     {% else %}
@@ -83,9 +86,19 @@ endblock %} {% block content %}
                         </div>
                     </div>
                     <div class="card-footer">
-                        <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                        <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary w-100 mb-1">
                             <i class="bi bi-box-arrow-up-right me-1"></i> View on Vinted
                         </a>
+                        {% if item.username %}
+                        <button
+                            class="btn btn-sm w-100 block-user-btn {% if item.is_blocked %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
+                            data-username="{{ item.username }}"
+                            data-blocked="{{ 'true' if item.is_blocked else 'false' }}"
+                        >
+                            <i class="bi {% if item.is_blocked %}bi-person-check{% else %}bi-person-x{% endif %} me-1"></i>
+                            {{ 'Unblock' if item.is_blocked else 'Block' }} user
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -114,7 +127,7 @@ endblock %} {% block content %}
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr>
+                    <tr class="{% if item.is_blocked %}table-row-blocked{% endif %}">
                         <td style="width: 50px">
                             {% if item.photo_url %}
                             <img src="{{ item.photo_url }}" alt="{{ item.title }}" class="img-thumbnail" style="width: 40px; height: 40px; object-fit: cover;" />
@@ -124,7 +137,12 @@ endblock %} {% block content %}
                             </div>
                             {% endif %}
                         </td>
-                        <td class="text-truncate" style="max-width: 250px; font-weight: 500">{{ item.title }}</td>
+                        <td class="text-truncate" style="max-width: 250px; font-weight: 500">
+                            {{ item.title }}
+                            {% if item.is_blocked %}
+                            <span class="badge bg-danger ms-1" style="font-size: 0.6rem;">blocked</span>
+                            {% endif %}
+                        </td>
                         <td style="font-weight: 600">{{ item.price }} {{ item.currency }}</td>
                         <td>
                             <span class="badge bg-secondary">{{ item.query|truncate(30) }}</span>
@@ -133,9 +151,21 @@ endblock %} {% block content %}
                             <span style="font-size: 0.75rem; color: var(--muted-foreground);">{{ item.timestamp }}</span>
                         </td>
                         <td>
-                            <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                            </a>
+                            <div class="d-flex gap-1">
+                                <a href="{{ item.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                {% if item.username %}
+                                <button
+                                    class="btn btn-sm block-user-btn {% if item.is_blocked %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
+                                    data-username="{{ item.username }}"
+                                    data-blocked="{{ 'true' if item.is_blocked else 'false' }}"
+                                    title="{{ 'Unblock' if item.is_blocked else 'Block' }} {{ item.username }}"
+                                >
+                                    <i class="bi {% if item.is_blocked %}bi-person-check{% else %}bi-person-x{% endif %}"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
@@ -188,6 +218,102 @@ endblock %} {% block content %}
 
         listViewBtn.addEventListener("click", function () {
             setActiveView("list");
+        });
+
+        // Block/unblock user buttons
+        document.querySelectorAll(".block-user-btn").forEach((btn) => {
+            btn.addEventListener("click", function () {
+                const username = this.getAttribute("data-username");
+                const button = this;
+
+                button.disabled = true;
+
+                const formData = new FormData();
+                formData.append("username", username);
+
+                fetch("/api/toggle_block_user", {
+                    method: "POST",
+                    body: formData,
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.status === "success") {
+                            // Update all buttons for the same username
+                            document.querySelectorAll(`.block-user-btn[data-username="${username}"]`).forEach((b) => {
+                                b.setAttribute("data-blocked", data.blocked ? "true" : "false");
+                                const hasText = b.textContent.trim().includes("user");
+                                if (data.blocked) {
+                                    b.classList.remove("btn-outline-danger");
+                                    b.classList.add("btn-outline-success");
+                                    b.innerHTML = hasText
+                                        ? '<i class="bi bi-person-check me-1"></i> Unblock user'
+                                        : '<i class="bi bi-person-check"></i>';
+                                    b.title = "Unblock " + username;
+                                } else {
+                                    b.classList.remove("btn-outline-success");
+                                    b.classList.add("btn-outline-danger");
+                                    b.innerHTML = hasText
+                                        ? '<i class="bi bi-person-x me-1"></i> Block user'
+                                        : '<i class="bi bi-person-x"></i>';
+                                    b.title = "Block " + username;
+                                }
+                            });
+
+                            // Update visual indication on cards and rows
+                            document.querySelectorAll(`.block-user-btn[data-username="${username}"]`).forEach((b) => {
+                                const card = b.closest(".item-card");
+                                if (card) {
+                                    if (data.blocked) {
+                                        card.classList.add("item-blocked");
+                                        if (!card.querySelector(".blocked-badge")) {
+                                            const badge = document.createElement("span");
+                                            badge.className = "blocked-badge";
+                                            badge.innerHTML = '<i class="bi bi-person-x"></i>';
+                                            card.prepend(badge);
+                                        }
+                                    } else {
+                                        card.classList.remove("item-blocked");
+                                        const badge = card.querySelector(".blocked-badge");
+                                        if (badge) badge.remove();
+                                    }
+                                }
+                                const row = b.closest("tr");
+                                if (row) {
+                                    if (data.blocked) {
+                                        row.classList.add("table-row-blocked");
+                                        const titleTd = row.querySelector("td:nth-child(2)");
+                                        if (titleTd && !titleTd.querySelector(".badge")) {
+                                            titleTd.insertAdjacentHTML("beforeend", ' <span class="badge bg-danger ms-1" style="font-size: 0.6rem;">blocked</span>');
+                                        }
+                                    } else {
+                                        row.classList.remove("table-row-blocked");
+                                        const badge = row.querySelector(".badge.bg-danger");
+                                        if (badge) badge.remove();
+                                    }
+                                }
+                            });
+
+                            // Show flash notification
+                            const flashContainer = document.querySelector(".flash-messages");
+                            if (flashContainer) {
+                                const alertDiv = document.createElement("div");
+                                alertDiv.className = "alert alert-success alert-dismissible fade show flash-message";
+                                alertDiv.setAttribute("role", "alert");
+                                alertDiv.innerHTML = `${data.message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+                                flashContainer.appendChild(alertDiv);
+                                setTimeout(() => {
+                                    const bsAlert = new bootstrap.Alert(alertDiv);
+                                    bsAlert.close();
+                                }, 3000);
+                            }
+                        }
+                        button.disabled = false;
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                        button.disabled = false;
+                    });
+            });
         });
     });
 </script>

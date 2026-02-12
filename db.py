@@ -79,15 +79,15 @@ def update_last_timestamp(query_id, timestamp):
             conn.close()
 
 
-def add_item_to_db(id, title, query_id, price, timestamp, photo_url, currency="EUR"):
+def add_item_to_db(id, title, query_id, price, timestamp, photo_url, currency="EUR", username=None):
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         # Insert into db the id and the query_id related to the item
         cursor.execute(
-            "INSERT INTO items (item, title, price, currency, timestamp, photo_url, query_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (id, title, price, currency, timestamp, photo_url, query_id),
+            "INSERT INTO items (item, title, price, currency, timestamp, photo_url, query_id, username) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (id, title, price, currency, timestamp, photo_url, query_id, username),
         )
         # Update the last item for the query
         cursor.execute(
@@ -429,7 +429,7 @@ def get_items(limit=50, query=None):
                 query_id = result[0]
                 # Get items with the matching query_id
                 cursor.execute(
-                    "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, q.query_name FROM items i JOIN queries q ON i.query_id = q.id WHERE i.query_id=? ORDER BY i.timestamp DESC LIMIT ?",
+                    "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, q.query_name, i.username FROM items i JOIN queries q ON i.query_id = q.id WHERE i.query_id=? ORDER BY i.timestamp DESC LIMIT ?",
                     (query_id, limit),
                 )
             else:
@@ -437,7 +437,7 @@ def get_items(limit=50, query=None):
         else:
             # Join with queries table to get the query text
             cursor.execute(
-                "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, q.query_name FROM items i JOIN queries q ON i.query_id = q.id ORDER BY i.timestamp DESC LIMIT ?",
+                "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, q.query_name, i.username FROM items i JOIN queries q ON i.query_id = q.id ORDER BY i.timestamp DESC LIMIT ?",
                 (limit,),
             )
         return cursor.fetchall()
@@ -485,7 +485,7 @@ def get_last_found_item():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url FROM items i JOIN queries q ON i.query_id = q.id ORDER BY i.timestamp DESC LIMIT 1"
+            "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, i.username FROM items i JOIN queries q ON i.query_id = q.id ORDER BY i.timestamp DESC LIMIT 1"
         )
         return cursor.fetchone()
     except Exception:

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS items
     timestamp NUMERIC,
     photo_url TEXT,
     query_id  INTEGER,
+    username  TEXT,
     FOREIGN KEY (query_id) REFERENCES queries (id)
 );
 
