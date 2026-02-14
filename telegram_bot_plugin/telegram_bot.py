@@ -13,8 +13,12 @@ logger = get_logger(__name__)
 async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         ver = db.get_parameter("version")
+        profile_id = context.bot_data.get("profile_id", 1)
+        profile = db.get_profile(profile_id)
+        profile_name = profile["name"] if profile else "Unknown"
         await update.message.reply_text(
             f"Hello {update.effective_user.first_name}! Vinted-Notifications is running under version {ver}.\n"
+            f"Profile: {profile_name}\n"
         )
     except Exception as e:
         logger.error(f"Error in hello command: {str(e)}", exc_info=True)
@@ -27,16 +31,21 @@ async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 class LeRobot:
-    def __init__(self, queue):
+    def __init__(self, queue, profile_id=1):
         from telegram import Bot
         from telegram.ext import ApplicationBuilder, CommandHandler
 
         try:
+            self.profile_id = profile_id
+            token = db.get_profile_setting(profile_id, "telegram_token")
 
-            self.bot = Bot(db.get_parameter("telegram_token"))
+            self.bot = Bot(token)
             self.app = (
-                ApplicationBuilder().token(db.get_parameter("telegram_token")).build()
+                ApplicationBuilder().token(token).build()
             )
+
+            # Store profile_id in bot_data for access in handlers
+            self.app.bot_data["profile_id"] = profile_id
 
             # Create the item queue to send to telegram
             self.new_items_queue = queue
@@ -55,10 +64,6 @@ class LeRobot:
             self.app.add_handler(CommandHandler("remove_country", self.remove_country))
             self.app.add_handler(CommandHandler("allowlist", self.allowlist))
 
-            # TODO : Help command
-
-            # TODO : Manage removals after current items have been processed.
-
             job_queue = self.app.job_queue
             # Set the commands
             job_queue.run_once(self.set_commands, when=1)
@@ -69,7 +74,7 @@ class LeRobot:
 
             self.app.run_polling()
         except Exception as e:
-            logger.error(f"Error initializing bot: {str(e)}", exc_info=True)
+            logger.error(f"Error initializing bot (profile {profile_id}): {str(e)}", exc_info=True)
 
     ### QUERIES ###
 
@@ -89,12 +94,12 @@ class LeRobot:
             else:
                 name = None
                 url = query[0]
-            # Process the query using the core function
-            message, is_new_query = core.process_query(url, name)
+            # Process the query using the core function with profile_id
+            message, is_new_query = core.process_query(url, name, profile_id=self.profile_id)
 
             if is_new_query:
                 # Create a string with all the keywords
-                query_list = core.get_formatted_query_list()
+                query_list = core.get_formatted_query_list(profile_id=self.profile_id)
                 await update.message.reply_text(
                     f"{message} \nCurrent queries: \n{query_list}"
                 )
@@ -122,14 +127,16 @@ class LeRobot:
             # Process the removal using the core function
             if number[0] != "all":
                 number[0] = db.get_query_id_by_rowid(number[0])
-            message, success = core.process_remove_query(str(number[0]))
+            message, success = core.process_remove_query(
+                str(number[0]), profile_id=self.profile_id
+            )
 
             if success:
                 if number[0] == "all":
                     await update.message.reply_text(message)
                 else:
                     # Get the updated list of queries
-                    query_list = core.get_formatted_query_list()
+                    query_list = core.get_formatted_query_list(profile_id=self.profile_id)
                     await update.message.reply_text(
                         f"{message} \nCurrent queries: \n{query_list}"
                     )
@@ -147,7 +154,7 @@ class LeRobot:
     # get all queries from the db
     async def queries(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
-            query_list = core.get_formatted_query_list()
+            query_list = core.get_formatted_query_list(profile_id=self.profile_id)
             await update.message.reply_text(f"Current queries: \n{query_list}")
         except Exception as e:
             logger.error(f"Error retrieving queries: {str(e)}", exc_info=True)
@@ -164,7 +171,7 @@ class LeRobot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         try:
-            db.clear_allowlist()
+            db.clear_allowlist(profile_id=self.profile_id)
             await update.message.reply_text(
                 "Allowlist cleared. All countries are allowed."
             )
@@ -187,7 +194,9 @@ class LeRobot:
                 return
 
             # Process the country using the core function
-            message, country_list = core.process_add_country(" ".join(country))
+            message, country_list = core.process_add_country(
+                " ".join(country), profile_id=self.profile_id
+            )
 
             await update.message.reply_text(
                 f"{message} Current allowlist: {country_list}"
@@ -211,7 +220,9 @@ class LeRobot:
                 return
 
             # Process the country using the core function
-            message, country_list = core.process_remove_country(" ".join(country))
+            message, country_list = core.process_remove_country(
+                " ".join(country), profile_id=self.profile_id
+            )
 
             await update.message.reply_text(
                 f"{message} Current allowlist: {country_list}"
@@ -231,13 +242,13 @@ class LeRobot:
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         try:
-            if db.get_allowlist() == 0:
+            if db.get_allowlist(profile_id=self.profile_id) == 0:
                 await update.message.reply_text(
                     "No allowlist set. All countries are allowed."
                 )
             else:
                 await update.message.reply_text(
-                    f"Current allowlist: {db.get_allowlist()}"
+                    f"Current allowlist: {db.get_allowlist(profile_id=self.profile_id)}"
                 )
         except Exception as e:
             logger.error(f"Error retrieving allowlist: {str(e)}", exc_info=True)
@@ -253,7 +264,7 @@ class LeRobot:
     async def send_new_post(self, content, url, text, buy_url=None, buy_text=None):
         try:
             async with self.bot:
-                chat_ID = str(db.get_parameter("telegram_chat_id"))
+                chat_ID = str(db.get_profile_setting(self.profile_id, "telegram_chat_id"))
                 buttons = [[InlineKeyboardButton(text=text, url=url)]]
                 if buy_url and buy_text:
                     buttons.append([InlineKeyboardButton(text=buy_text, url=buy_url)])

@@ -5,6 +5,60 @@ Notifications{% endblock %} {% block content %}
     <p>Manage application settings and services</p>
 </div>
 
+<!-- Profile Management -->
+<div class="card mb-4" id="profiles">
+    <div class="card-header">
+        <i class="bi bi-people me-2" style="color: var(--muted-foreground)"></i>Profile Management
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Current Profile</label>
+                <div class="d-flex align-items-center gap-2">
+                    <span style="font-weight: 600; font-size: 1rem;">{{ current_profile.name if current_profile else 'Default' }}</span>
+                    <span class="badge bg-secondary">ID: {{ current_profile_id }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Rename Profile</label>
+                <form action="/rename_profile" method="post" class="d-flex gap-2">
+                    <input type="text" class="form-control" name="profile_name" placeholder="New name" required />
+                    <button type="submit" class="btn btn-outline-secondary btn-sm" style="white-space: nowrap;">
+                        <i class="bi bi-pencil"></i> Rename
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Create New Profile</label>
+                <form action="/create_profile" method="post" class="d-flex gap-2">
+                    <input type="text" class="form-control" name="profile_name" placeholder="Profile name" required />
+                    <button type="submit" class="btn btn-primary btn-sm" style="white-space: nowrap;">
+                        <i class="bi bi-plus-lg"></i> Create
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% if profiles|length > 1 %}
+        <hr class="my-3" />
+        <div>
+            <label class="form-label">Delete Profile</label>
+            <div class="form-text mb-2">Deleting a profile removes all its queries, items, allowlist, and blocked users.</div>
+            <div class="d-flex flex-wrap gap-2">
+                {% for pid, pname in profiles %}
+                {% if pid != current_profile_id %}
+                <form action="/delete_profile/{{ pid }}" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete profile &quot;{{ pname }}&quot;? This will remove all its data.');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash me-1"></i>{{ pname }}
+                    </button>
+                </form>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <form action="/update_config" method="post">
     <!-- System Settings -->
     <div class="card mb-4">
@@ -13,7 +67,7 @@ Notifications{% endblock %} {% block content %}
                 class="bi bi-gear me-2"
                 style="color: var(--muted-foreground)"
             ></i
-            >System Settings
+            >Profile Settings <span class="badge bg-info ms-2" style="font-size: 0.625rem;">Per Profile</span>
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
@@ -101,7 +155,7 @@ Notifications{% endblock %} {% block content %}
                 class="bi bi-clock me-2"
                 style="color: var(--muted-foreground)"
             ></i
-            >Schedule
+            >Schedule <span class="badge bg-secondary ms-2" style="font-size: 0.625rem;">Global</span>
         </div>
         <div class="card-body">
             <div class="mb-3">
@@ -176,7 +230,7 @@ Notifications{% endblock %} {% block content %}
                         class="bi bi-telegram me-2"
                         style="color: var(--muted-foreground)"
                     ></i
-                    >Telegram Bot
+                    >Telegram Bot <span class="badge bg-info ms-2" style="font-size: 0.625rem;">Per Profile</span>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -240,7 +294,7 @@ Notifications{% endblock %} {% block content %}
                         class="bi bi-rss me-2"
                         style="color: var(--muted-foreground)"
                     ></i
-                    >RSS Feed
+                    >RSS Feed <span class="badge bg-info ms-2" style="font-size: 0.625rem;">Per Profile</span>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -306,7 +360,7 @@ Notifications{% endblock %} {% block content %}
                 class="bi bi-shield-lock me-2"
                 style="color: var(--muted-foreground)"
             ></i
-            >Proxy Settings
+            >Proxy Settings <span class="badge bg-secondary ms-2" style="font-size: 0.625rem;">Global</span>
         </div>
         <div class="card-body">
             <div class="mb-3">
@@ -374,7 +428,7 @@ Notifications{% endblock %} {% block content %}
                 class="bi bi-gear-wide-connected me-2"
                 style="color: var(--muted-foreground)"
             ></i
-            >Advanced Settings
+            >Advanced Settings <span class="badge bg-secondary ms-2" style="font-size: 0.625rem;">Mixed</span>
         </div>
         <div class="card-body">
             <div class="mb-3">

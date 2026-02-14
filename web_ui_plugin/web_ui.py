@@ -1,10 +1,11 @@
 import os
-import re
+import sys
 import signal
-from datetime import datetime
 from urllib.parse import parse_qs, urlparse
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+# Add parent directory to the path so we can import the core module
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import core
 import db
@@ -14,570 +15,543 @@ from logger import get_logger
 # Get logger for this module
 logger = get_logger(__name__)
 
-# Create Flask app
-app = Flask(
-    __name__,
-    template_folder=os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "templates"
-    ),
-    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
-)
-
-# Secret key for session management
+app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 
-@app.context_processor
-def inject_version_info():
-    is_up_to_date, current_ver, latest_version, github_url = core.check_version()
-    return {
-        "github_url": github_url,
-        "current_version": current_ver,
-        "latest_version": latest_version,
-        "is_up_to_date": is_up_to_date,
-    }
+def get_current_profile_id():
+    """Get the current profile ID from session, defaulting to first available profile."""
+    profile_id = session.get("profile_id")
+    if profile_id is not None:
+        # Verify profile still exists
+        profile = db.get_profile(profile_id)
+        if profile:
+            return profile_id
+    # Default to first profile
+    profiles = db.get_profiles()
+    if profiles:
+        session["profile_id"] = profiles[0][0]
+        return profiles[0][0]
+    return 1
 
 
 @app.context_processor
-def inject_current_year():
-    return {"current_year": datetime.now().year}
+def inject_profiles():
+    """Inject profiles list and current profile into all templates."""
+    profiles = db.get_profiles()
+    current_profile_id = get_current_profile_id()
+    current_profile = db.get_profile(current_profile_id)
+    return dict(
+        profiles=profiles,
+        current_profile_id=current_profile_id,
+        current_profile=current_profile,
+    )
+
+
+# ==================== Profile Routes ====================
+
+
+@app.route("/switch_profile/<int:profile_id>")
+def switch_profile(profile_id):
+    profile = db.get_profile(profile_id)
+    if profile:
+        session["profile_id"] = profile_id
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/create_profile", methods=["POST"])
+def create_profile():
+    name = request.form.get("profile_name", "").strip()
+    if not name:
+        flash("Profile name cannot be empty.", "danger")
+        return redirect(url_for("config"))
+    profile_id = db.create_profile(name)
+    if profile_id:
+        flash(f'Profile "{name}" created.', "success")
+        session["profile_id"] = profile_id
+    else:
+        flash("Failed to create profile.", "danger")
+    return redirect(url_for("config"))
+
+
+@app.route("/rename_profile", methods=["POST"])
+def rename_profile():
+    profile_id = get_current_profile_id()
+    name = request.form.get("profile_name", "").strip()
+    if not name:
+        flash("Profile name cannot be empty.", "danger")
+        return redirect(url_for("config"))
+    if db.update_profile_name(profile_id, name):
+        flash(f'Profile renamed to "{name}".', "success")
+    else:
+        flash("Failed to rename profile.", "danger")
+    return redirect(url_for("config"))
+
+
+@app.route("/delete_profile/<int:profile_id>", methods=["POST"])
+def delete_profile(profile_id):
+    profiles = db.get_profiles()
+    if len(profiles) <= 1:
+        flash("Cannot delete the last profile.", "danger")
+        return redirect(url_for("config"))
+
+    profile = db.get_profile(profile_id)
+    if not profile:
+        flash("Profile not found.", "danger")
+        return redirect(url_for("config"))
+
+    name = profile["name"]
+    if db.delete_profile(profile_id):
+        flash(f'Profile "{name}" deleted.', "success")
+        # Switch to another profile
+        if session.get("profile_id") == profile_id:
+            remaining = db.get_profiles()
+            if remaining:
+                session["profile_id"] = remaining[0][0]
+    else:
+        flash("Failed to delete profile.", "danger")
+    return redirect(url_for("config"))
+
+
+# ==================== Dashboard ====================
 
 
 @app.route("/")
 def index():
-    # Get parameters
-    params = db.get_all_parameters()
+    profile_id = get_current_profile_id()
 
-    # Get queries
-    queries = db.get_queries()
-    formatted_queries = []
-    for i, query in enumerate(queries):
-        parsed_query = urlparse(query[1])
-        query_params = parse_qs(parsed_query.query)
-        query_name = (
-            query[3]
-            if query[3] is not None
-            else query_params.get("search_text", [None])[0]
-        )
+    try:
+        # Fetch stats scoped to the current profile
+        total_queries = db.get_total_queries_count(profile_id=profile_id)
+        total_items = db.get_total_items_count(profile_id=profile_id)
+        items_per_day = db.get_items_per_day(profile_id=profile_id)
 
-        # Get the last timestamp for this query
-        try:
-            last_timestamp = db.get_last_timestamp(query[0])
-            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
-        except Exception as e:
-            logger.debug(f"Error getting last timestamp for query {query[0]}: {e}")
-            last_found_item = "Never"
+        # Get recent items for the current profile
+        recent_items_raw = db.get_items(limit=10, profile_id=profile_id)
+        recent_items = []
+        for item in recent_items_raw:
+            item_id, title, price, currency, timestamp, query, photo_url, query_name, username = item
+            display_query = query_name if query_name else query
+            # Format time
+            formatted_time = timezone_utils.format_timestamp(timestamp)
 
-        formatted_queries.append(
-            {
-                "id": i + 1,
-                "query_id": query[0],
-                "query": query[1],
-                "display": query_name if query_name else query[1],
-                "last_found_item": last_found_item,
-            }
-        )
-
-    # Get recent items
-    items = db.get_items(limit=10)
-    formatted_items = []
-    for item in items:
-        username = item[8] if len(item) > 8 else None
-        formatted_items.append(
-            {
-                "title": item[1],
-                "price": item[2],
-                "currency": item[3],
-                "timestamp": timezone_utils.format_local_timestamp(item[4]),
-                "query": item[5],
-                "photo_url": item[6],
-                "url": (
-                    f"{urlparse(item[5]).scheme}://"
-                    f"{urlparse(item[5]).netloc}/items/{item[0]}"
-                ),
+            recent_items.append({
+                "item": item_id,
+                "title": title,
+                "price": price,
+                "currency": currency,
+                "timestamp": formatted_time,
+                "query": display_query,
+                "photo_url": photo_url,
+                "url": f"https://www.vinted.fr/items/{item_id}",
                 "username": username,
-                "is_blocked": db.is_user_blocked(username) if username else False,
-            }
+                "is_blocked": db.is_user_blocked(username, profile_id=profile_id) if username else False,
+            })
+
+        # Check version
+        try:
+            is_up_to_date, ver, latest_version, github_url = core.check_version()
+        except Exception:
+            is_up_to_date, ver, latest_version, github_url = True, "?", "?", "#"
+
+        return render_template(
+            "index.html",
+            total_queries=total_queries,
+            total_items=total_items,
+            items_per_day=items_per_day,
+            recent_items=recent_items,
+            is_up_to_date=is_up_to_date,
+            ver=ver,
+            latest_version=latest_version,
+            github_url=github_url,
+        )
+    except Exception as e:
+        logger.error(f"Error loading dashboard: {e}", exc_info=True)
+        return render_template(
+            "index.html",
+            total_queries=0,
+            total_items=0,
+            items_per_day=0,
+            recent_items=[],
+            is_up_to_date=True,
+            ver="?",
+            latest_version="?",
+            github_url="#",
         )
 
-    # Get process status from the database
-    telegram_running = db.get_parameter("telegram_process_running") == "True"
-    rss_running = db.get_parameter("rss_process_running") == "True"
 
-    # Get statistics for the dashboard
-    stats = {
-        "total_items": db.get_total_items_count(),
-        "total_queries": db.get_total_queries_count(),
-        "items_per_day": db.get_items_per_day(),
-    }
-
-    # Get the last found item
-    last_item = db.get_last_found_item()
-    if last_item:
-        stats["last_item"] = {
-            "title": last_item[1],
-            "price": last_item[2],
-            "currency": last_item[3],
-            "timestamp": timezone_utils.format_local_timestamp(last_item[4]),
-            "query": last_item[5],
-            "photo_url": last_item[6],
-            "url": (
-                f"{urlparse(last_item[5]).scheme}://"
-                f"{urlparse(last_item[5]).netloc}/items/{last_item[0]}"
-            ),
-        }
-    else:
-        stats["last_item"] = None
-
-    return render_template(
-        "index.html",
-        params=params,
-        queries=formatted_queries,
-        items=formatted_items,
-        telegram_running=telegram_running,
-        rss_running=rss_running,
-        stats=stats,
-    )
+# ==================== Queries ====================
 
 
 @app.route("/queries")
 def queries():
-    # Get queries
-    all_queries = db.get_queries()
-    formatted_queries = []
-    for i, query in enumerate(all_queries):
-        parsed_query = urlparse(query[1])
-        query_params = parse_qs(parsed_query.query)
-        query_name = (
-            query[3]
-            if query[3] is not None
-            else query_params.get("search_text", [None])[0]
-        )
+    profile_id = get_current_profile_id()
+    all_queries = db.get_queries(profile_id=profile_id)
+    queries_list = []
+    for query in all_queries:
+        query_id, query_url, last_item, query_name, p_id = query
+        parsed_url = urlparse(query_url)
+        query_params = parse_qs(parsed_url.query)
+        search_text = query_params.get("search_text", [None])[0]
+        display = query_name if query_name else (search_text if search_text else query_url)
+        queries_list.append({
+            "id": query_id,
+            "query": query_url,
+            "query_name": query_name,
+            "display": display,
+            "last_item": last_item,
+        })
 
-        # Get the last timestamp for this query
-        try:
-            last_timestamp = db.get_last_timestamp(query[0])
-            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
-        except Exception as e:
-            logger.debug(f"Error getting last timestamp for query {query[0]}: {e}")
-            last_found_item = "Never"
-
-        formatted_queries.append(
-            {
-                "id": i + 1,
-                "query_id": query[0],
-                "query": query[1],
-                "display": query_name if query_name else query[1],
-                "last_found_item": last_found_item,
-            }
-        )
-
-    return render_template("queries.html", queries=formatted_queries)
+    return render_template("queries.html", queries=queries_list)
 
 
 @app.route("/add_query", methods=["POST"])
 def add_query():
-    query = request.form.get("query")
-    query_name = request.form.get("query_name", "").strip()
-    if query:
-        message, is_new_query = core.process_query(
-            query, name=query_name if query_name != "" else None
-        )
-        if is_new_query:
-            flash(f"Query added: {query}", "success")
-        else:
-            flash(message, "warning")
-    else:
-        flash("No query provided", "error")
+    profile_id = get_current_profile_id()
+    query = request.form.get("query", "")
+    name = request.form.get("query_name", "").strip() or None
 
+    if not query:
+        flash("No query provided.", "danger")
+        return redirect(url_for("queries"))
+
+    message, is_new = core.process_query(query, name, profile_id=profile_id)
+    flash(message, "success" if is_new else "warning")
     return redirect(url_for("queries"))
 
 
 @app.route("/remove_query/<int:query_id>", methods=["POST"])
 def remove_query(query_id):
-    message, success = core.process_remove_query(str(query_id))
-    if success:
-        flash("Query removed", "success")
-    else:
-        flash(message, "error")
-
-    return redirect(url_for("queries"))
-
-
-@app.route("/remove_query/all", methods=["POST"])
-def remove_all_queries():
-    message, success = core.process_remove_query("all")
-    if success:
-        flash("All queries removed", "success")
-    else:
-        flash(message, "error")
-
+    db.remove_query_from_db(query_id)
+    flash("Query removed.", "success")
     return redirect(url_for("queries"))
 
 
 @app.route("/update_query/<int:query_id>", methods=["POST"])
 def update_query(query_id):
-    query = request.form.get("query")
-    query_name = request.form.get("query_name", "").strip()
+    query = request.form.get("query", "")
+    name = request.form.get("query_name", "").strip() or None
 
-    if query:
-        message, success = core.process_update_query(
-            query_id, query, name=query_name if query_name != "" else None
-        )
-        if success:
-            flash("Query updated", "success")
-        else:
-            flash(message, "error")
-    else:
-        flash("No query provided", "error")
+    if not query:
+        flash("No query provided.", "danger")
+        return redirect(url_for("queries"))
 
+    message, success = core.process_update_query(query_id, query, name)
+    flash(message, "success" if success else "danger")
     return redirect(url_for("queries"))
+
+
+# ==================== Items ====================
 
 
 @app.route("/items")
 def items():
-    query_id = request.args.get("query", "")  # Default to empty string instead of None
-    limit = int(request.args.get("limit", 50))
+    profile_id = get_current_profile_id()
+    selected_query = request.args.get("query", "")
+    limit = request.args.get("limit", "25")
+
+    try:
+        limit = int(limit)
+    except ValueError:
+        limit = 25
+
+    # Get all queries for this profile (for the filter dropdown)
+    all_queries = db.get_queries(profile_id=profile_id)
+    queries_list = []
+    for query in all_queries:
+        query_id, query_url, last_item, query_name, p_id = query
+        parsed_url = urlparse(query_url)
+        query_params = parse_qs(parsed_url.query)
+        search_text = query_params.get("search_text", [None])[0]
+        display = query_name if query_name else (search_text if search_text else query_url)
+        queries_list.append({
+            "query_id": str(query_id),
+            "display": display,
+        })
 
     # Get items
-    query_string = None
-    if query_id:
-        # Get the actual query string for the given ID
-        queries = db.get_queries()
-        for q in queries:
-            if str(q[0]) == query_id:
-                query_string = q[1]
-                break
+    if selected_query:
+        try:
+            selected_query_id = int(selected_query)
+            import sqlite3
+            conn = None
+            try:
+                conn = sqlite3.connect(db.DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT i.item, i.title, i.price, i.currency, i.timestamp, q.query, i.photo_url, q.query_name, i.username FROM items i JOIN queries q ON i.query_id = q.id WHERE i.query_id=? AND q.profile_id=? ORDER BY i.timestamp DESC LIMIT ?",
+                    (selected_query_id, profile_id, limit),
+                )
+                items_raw = cursor.fetchall()
+            finally:
+                if conn:
+                    conn.close()
+        except (ValueError, Exception):
+            items_raw = db.get_items(limit=limit, profile_id=profile_id)
+    else:
+        items_raw = db.get_items(limit=limit, profile_id=profile_id)
 
-    items_data = db.get_items(limit=limit, query=query_string)
-    formatted_items = []
+    items_list = []
+    for item in items_raw:
+        item_id, title, price, currency, timestamp, query, photo_url, query_name, username = item
+        display_query = query_name if query_name else query
+        formatted_time = timezone_utils.format_timestamp(timestamp)
 
-    for item in items_data:
-        username = item[8] if len(item) > 8 else None
-        formatted_items.append(
-            {
-                "title": item[1],
-                "price": item[2],
-                "currency": item[3],
-                "timestamp": timezone_utils.format_local_timestamp(item[4]),
-                # Ugly Ugly Ugly very Ugly eeew but I have to do a proper
-                # migration of existing db later else it'll break
-                # Eeew bad me >:c
-                "query": (
-                    item[7]
-                    if item[7]
-                    else (
-                        parse_qs(urlparse(item[5]).query).get("search_text", [None])[0]
-                        if parse_qs(urlparse(item[5]).query).get("search_text", [None])[
-                            0
-                        ]
-                        else item[5]
-                    )
-                ),
-                "url": (
-                    f"{urlparse(item[5]).scheme}://"
-                    f"{urlparse(item[5]).netloc}/items/{item[0]}"
-                ),
-                "photo_url": item[6],
-                "username": username,
-                "is_blocked": db.is_user_blocked(username) if username else False,
-            }
-        )
+        items_list.append({
+            "item": item_id,
+            "title": title,
+            "price": price,
+            "currency": currency,
+            "timestamp": formatted_time,
+            "query": display_query,
+            "photo_url": photo_url,
+            "url": f"https://www.vinted.fr/items/{item_id}",
+            "username": username,
+            "is_blocked": db.is_user_blocked(username, profile_id=profile_id) if username else False,
+        })
 
-    # Get queries for filter dropdown
-    queries = db.get_queries()
-    formatted_queries = []
-    selected_query_display = None
-    for i, q in enumerate(queries):
-        parsed_query = urlparse(q[1])
-        query_params = parse_qs(parsed_query.query)
-        query_name = (
-            q[3] if q[3] is not None else query_params.get("search_text", [None])[0]
-        )
-        display_name = query_name if query_name else q[0]
-        # Store display name for selected query
-        if query_id == str(q[0]):
-            selected_query_display = display_name
-        formatted_queries.append(
-            {"id": i + 1, "query_id": q[0], "query": q[1], "display": display_name}
-        )
+    # Find the display text for the selected query
+    selected_query_display = ""
+    for q in queries_list:
+        if q["query_id"] == selected_query:
+            selected_query_display = q["display"]
+            break
 
     return render_template(
         "items.html",
-        items=formatted_items,
-        queries=formatted_queries,
-        selected_query=query_id,
+        items=items_list,
+        queries=queries_list,
+        selected_query=selected_query,
         selected_query_display=selected_query_display,
         limit=limit,
     )
 
 
+# ==================== Configuration ====================
+
+
 @app.route("/config")
 def config():
+    profile_id = get_current_profile_id()
+
+    # Get global parameters
     params = db.get_all_parameters()
-    return render_template("config.html", params=params)
+
+    # Get per-profile settings
+    profile_settings = db.get_all_profile_settings(profile_id)
+
+    # Merge into a single dict for template compatibility
+    merged = {}
+    merged.update(params)
+    merged.update(profile_settings)
+
+    return render_template("config.html", params=merged)
 
 
 @app.route("/update_config", methods=["POST"])
 def update_config():
-    # Update Telegram parameters
-    telegram_enabled = "telegram_enabled" in request.form
-    db.set_parameter("telegram_enabled", str(telegram_enabled))
-    db.set_parameter("telegram_token", request.form.get("telegram_token", ""))
-    db.set_parameter("telegram_chat_id", request.form.get("telegram_chat_id", ""))
+    profile_id = get_current_profile_id()
 
-    # Update RSS parameters
-    rss_enabled = "rss_enabled" in request.form
-    db.set_parameter("rss_enabled", str(rss_enabled))
-    db.set_parameter("rss_port", request.form.get("rss_port", "8080"))
-    db.set_parameter("rss_max_items", request.form.get("rss_max_items", "100"))
+    # Per-profile settings
+    profile_settings = {
+        "telegram_enabled": "True" if request.form.get("telegram_enabled") else "False",
+        "telegram_token": request.form.get("telegram_token", ""),
+        "telegram_chat_id": request.form.get("telegram_chat_id", ""),
+        "rss_enabled": "True" if request.form.get("rss_enabled") else "False",
+        "rss_port": request.form.get("rss_port", "8080"),
+        "rss_max_items": request.form.get("rss_max_items", "100"),
+        "banwords": request.form.get("banwords", ""),
+        "message_template": request.form.get("message_template", ""),
+        "items_per_query": request.form.get("items_per_query", "20"),
+    }
+    db.update_profile_settings(profile_id, profile_settings)
 
-    # Update System parameters
-    db.set_parameter("items_per_query", request.form.get("items_per_query", "20"))
-    db.set_parameter(
-        "query_refresh_delay", request.form.get("query_refresh_delay", "60")
-    )
-    db.set_parameter("banwords", request.form.get("banwords", ""))
-    db.set_parameter("timezone", request.form.get("timezone", "Europe/Rome"))
+    # Global settings
+    global_params = {
+        "query_refresh_delay": request.form.get("query_refresh_delay", "60"),
+        "timezone": request.form.get("timezone", "Europe/Rome"),
+        "schedule_enabled": "True" if request.form.get("schedule_enabled") else "False",
+        "schedule_start_time": request.form.get("schedule_start_time", "08:00"),
+        "schedule_end_time": request.form.get("schedule_end_time", "01:00"),
+        "check_proxies": "True" if request.form.get("check_proxies") else "False",
+        "proxy_list": request.form.get("proxy_list", ""),
+        "proxy_list_link": request.form.get("proxy_list_link", ""),
+        "user_agents": request.form.get("user_agents", "[]"),
+        "default_headers": request.form.get("default_headers", "{}"),
+    }
+    for key, value in global_params.items():
+        db.set_parameter(key, value)
 
-    # Update Schedule parameters
-    schedule_enabled = "schedule_enabled" in request.form
-    db.set_parameter("schedule_enabled", str(schedule_enabled))
-    db.set_parameter(
-        "schedule_start_time", request.form.get("schedule_start_time", "08:00")
-    )
-    db.set_parameter(
-        "schedule_end_time", request.form.get("schedule_end_time", "01:00")
-    )
-
-    # Update Proxy parameters
-    check_proxies = "check_proxies" in request.form
-    db.set_parameter("check_proxies", str(check_proxies))
-    db.set_parameter("proxy_list", request.form.get("proxy_list", ""))
-    db.set_parameter("proxy_list_link", request.form.get("proxy_list_link", ""))
-
-    # Update Advanced parameters
-    db.set_parameter("message_template", request.form.get("message_template", ""))
-    db.set_parameter("user_agents", request.form.get("user_agents", "[]"))
-    db.set_parameter("default_headers", request.form.get("default_headers", "{}"))
-
-    # Reset proxy cache to force refresh on next use
-    db.set_parameter("last_proxy_check_time", "1")
-    logger.info("Proxy settings updated, cache reset")
-
-    flash("Configuration updated", "success")
+    flash("Configuration saved.", "success")
     return redirect(url_for("config"))
 
 
-@app.route("/control/<process_name>/<action>", methods=["POST"])
-def control_process(process_name, action):
-    if process_name not in ["telegram", "rss"]:
-        return jsonify({"status": "error", "message": "Invalid process name"})
-
-    if action == "start":
-        if process_name == "telegram":
-            # Check current status
-            if db.get_parameter("telegram_process_running") == "True":
-                return jsonify(
-                    {"status": "warning", "message": "Telegram bot already running"}
-                )
-
-            # Check if telegram_token and telegram_chat_id are set
-            telegram_token = db.get_parameter("telegram_token")
-            telegram_chat_id = db.get_parameter("telegram_chat_id")
-            if not telegram_token or not telegram_chat_id:
-                return jsonify(
-                    {
-                        "status": "error",
-                        "message": (
-                            "Please set Telegram token and chat ID in the "
-                            "configuration panel before starting the Telegram process"
-                        ),
-                    }
-                )
-
-            # Update process status in the database
-            # The manager process will detect this and start the process
-            db.set_parameter("telegram_process_running", "True")
-            logger.info("Telegram bot process start requested")
-            return jsonify(
-                {"status": "success", "message": "Telegram bot start requested"}
-            )
-
-        elif process_name == "rss":
-            # Check current status
-            if db.get_parameter("rss_process_running") == "True":
-                return jsonify(
-                    {"status": "warning", "message": "RSS feed already running"}
-                )
-
-            # Update process status in the database
-            # The manager process will detect this and start the process
-            db.set_parameter("rss_process_running", "True")
-            logger.info("RSS feed process start requested")
-            return jsonify({"status": "success", "message": "RSS feed start requested"})
-
-    elif action == "stop":
-        if process_name == "telegram":
-            # Check current status
-            if db.get_parameter("telegram_process_running") != "True":
-                return jsonify(
-                    {"status": "warning", "message": "Telegram bot not running"}
-                )
-
-            # Update process status in the database
-            # The manager process will detect this and stop the process
-            db.set_parameter("telegram_process_running", "False")
-            logger.info("Telegram bot process stop requested")
-            return jsonify(
-                {"status": "success", "message": "Telegram bot stop requested"}
-            )
-
-        elif process_name == "rss":
-            # Check current status
-            if db.get_parameter("rss_process_running") != "True":
-                return jsonify({"status": "warning", "message": "RSS feed not running"})
-
-            # Update process status in the database
-            # The manager process will detect this and stop the process
-            db.set_parameter("rss_process_running", "False")
-            logger.info("RSS feed process stop requested")
-            return jsonify({"status": "success", "message": "RSS feed stop requested"})
-
-    return jsonify({"status": "error", "message": "Invalid action"})
+# ==================== Process Control ====================
 
 
-@app.route("/control/status", methods=["GET"])
-def process_status():
-    # Get process status from the database
-    telegram_running = db.get_parameter("telegram_process_running") == "True"
-    rss_running = db.get_parameter("rss_process_running") == "True"
+@app.route("/control/<process>/<action>", methods=["POST"])
+def control_process(process, action):
+    profile_id = get_current_profile_id()
 
-    return jsonify({"telegram": telegram_running, "rss": rss_running})
+    if process == "telegram":
+        if action == "start":
+            token = db.get_profile_setting(profile_id, "telegram_token")
+            chat_id = db.get_profile_setting(profile_id, "telegram_chat_id")
+            if not token or not chat_id:
+                return jsonify({
+                    "status": "warning",
+                    "message": "Please configure Telegram token and chat ID first."
+                })
+            db.set_profile_setting(profile_id, "telegram_process_running", "True")
+            return jsonify({"status": "success", "message": "Telegram bot starting..."})
+        elif action == "stop":
+            db.set_profile_setting(profile_id, "telegram_process_running", "False")
+            return jsonify({"status": "success", "message": "Telegram bot stopping..."})
+    elif process == "rss":
+        if action == "start":
+            db.set_profile_setting(profile_id, "rss_process_running", "True")
+            return jsonify({"status": "success", "message": "RSS feed starting..."})
+        elif action == "stop":
+            db.set_profile_setting(profile_id, "rss_process_running", "False")
+            return jsonify({"status": "success", "message": "RSS feed stopping..."})
+
+    return jsonify({"status": "error", "message": "Invalid process or action."})
+
+
+@app.route("/control/status")
+def control_status():
+    profile_id = get_current_profile_id()
+    telegram_running = db.get_profile_setting(profile_id, "telegram_process_running") == "True"
+    rss_running = db.get_profile_setting(profile_id, "rss_process_running") == "True"
+    return jsonify({
+        "telegram": telegram_running,
+        "rss": rss_running,
+    })
 
 
 @app.route("/control/restart", methods=["POST"])
-def restart_service():
-    logger.info("Full service restart requested from Web UI")
+def control_restart():
     try:
-        # Send SIGINT to the main (parent) process to trigger graceful shutdown.
-        # Docker restart policy or a process manager will restart the application.
-        os.kill(os.getppid(), signal.SIGINT)
-        return jsonify({"status": "success", "message": "Service restart initiated"})
+        os.kill(os.getppid(), signal.SIGHUP)
+        return jsonify({"status": "success", "message": "Service restarting..."})
     except Exception as e:
-        logger.error(f"Error requesting restart: {e}", exc_info=True)
-        return jsonify({"status": "error", "message": f"Restart failed: {e}"})
+        logger.error(f"Error restarting service: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": f"Error: {str(e)}"})
+
+
+# ==================== Allowlist ====================
 
 
 @app.route("/allowlist")
 def allowlist():
-    countries = db.get_allowlist()
+    profile_id = get_current_profile_id()
+    countries = db.get_allowlist(profile_id=profile_id)
     if countries == 0:
         countries = []
-
     return render_template("allowlist.html", countries=countries)
 
 
 @app.route("/add_country", methods=["POST"])
 def add_country():
-    country = request.form.get("country", "").strip()
-    if country:
-        message, country_list = core.process_add_country(country)
-        flash(message, "success" if "added" in message else "warning")
-    else:
-        flash("No country provided", "error")
-
+    profile_id = get_current_profile_id()
+    country = request.form.get("country", "")
+    message, _ = core.process_add_country(country, profile_id=profile_id)
+    flash(message, "success" if "added" in message.lower() else "warning")
     return redirect(url_for("allowlist"))
 
 
 @app.route("/remove_country/<country>", methods=["POST"])
 def remove_country(country):
-    message, country_list = core.process_remove_country(country)
-    flash(message, "success")
-
+    profile_id = get_current_profile_id()
+    core.process_remove_country(country, profile_id=profile_id)
+    flash("Country removed.", "success")
     return redirect(url_for("allowlist"))
 
 
 @app.route("/clear_allowlist", methods=["POST"])
 def clear_allowlist():
-    db.clear_allowlist()
-    flash("Allowlist cleared", "success")
-
+    profile_id = get_current_profile_id()
+    db.clear_allowlist(profile_id=profile_id)
+    flash("Allowlist cleared.", "success")
     return redirect(url_for("allowlist"))
+
+
+# ==================== Blocked Users ====================
 
 
 @app.route("/blocked_users")
 def blocked_users():
-    users = db.get_blocked_users()
+    profile_id = get_current_profile_id()
+    users = db.get_blocked_users(profile_id=profile_id)
     if users == 0:
         users = []
-
     return render_template("blocked_users.html", users=users)
-
-
-@app.route("/api/blocked_users/search")
-def search_blocked_users():
-    query = request.args.get("q", "").strip().lower()
-    users = db.get_blocked_users()
-
-    if users == 0:
-        return jsonify([])
-
-    # Filter users based on the query
-    if query:
-        filtered_users = [user for user in users if query in user.lower()]
-    else:
-        filtered_users = users
-
-    return jsonify(filtered_users)
 
 
 @app.route("/add_blocked_user", methods=["POST"])
 def add_blocked_user():
-    username = request.form.get("username", "").strip()
-    if username:
-        message, success = core.process_add_blocked_user(username)
-        flash(message, "success" if success else "warning")
-    else:
-        flash("No username provided", "error")
-
+    profile_id = get_current_profile_id()
+    username = request.form.get("username", "")
+    message, success = core.process_add_blocked_user(username, profile_id=profile_id)
+    flash(message, "success" if success else "warning")
     return redirect(url_for("blocked_users"))
 
 
 @app.route("/remove_blocked_user/<username>", methods=["POST"])
 def remove_blocked_user(username):
-    message, success = core.process_remove_blocked_user(username)
-    flash(message, "success")
-
+    profile_id = get_current_profile_id()
+    core.process_remove_blocked_user(username, profile_id=profile_id)
+    flash("User unblocked.", "success")
     return redirect(url_for("blocked_users"))
 
 
 @app.route("/clear_blocked_users", methods=["POST"])
 def clear_blocked_users():
-    db.clear_blocked_users()
-    flash("Blocked users list cleared", "success")
-
+    profile_id = get_current_profile_id()
+    db.clear_blocked_users(profile_id=profile_id)
+    flash("All blocked users cleared.", "success")
     return redirect(url_for("blocked_users"))
 
 
 @app.route("/api/toggle_block_user", methods=["POST"])
 def toggle_block_user():
+    profile_id = get_current_profile_id()
     username = request.form.get("username", "").strip()
     if not username:
-        return jsonify({"status": "error", "message": "No username provided"}), 400
+        return jsonify({"status": "error", "message": "No username provided."})
 
-    if db.is_user_blocked(username):
-        message, success = core.process_remove_blocked_user(username)
-        blocked = False
+    if db.is_user_blocked(username, profile_id=profile_id):
+        db.remove_blocked_user(username, profile_id=profile_id)
+        return jsonify({
+            "status": "success",
+            "message": f'User "{username}" unblocked.',
+            "blocked": False,
+        })
     else:
-        message, success = core.process_add_blocked_user(username)
-        blocked = True
+        db.add_blocked_user(username, profile_id=profile_id)
+        return jsonify({
+            "status": "success",
+            "message": f'User "{username}" blocked.',
+            "blocked": True,
+        })
 
-    return jsonify({
-        "status": "success" if success else "error",
-        "message": message,
-        "blocked": blocked,
-    })
+
+@app.route("/api/blocked_users/search")
+def search_blocked_users():
+    profile_id = get_current_profile_id()
+    query = request.args.get("q", "").strip().lower()
+    if not query:
+        return jsonify([])
+
+    users = db.get_blocked_users(profile_id=profile_id)
+    if users == 0:
+        return jsonify([])
+
+    matching = [u for u in users if query in u.lower()]
+    return jsonify(matching[:10])
+
+
+# ==================== Logs ====================
 
 
 @app.route("/logs")
@@ -587,78 +561,29 @@ def logs():
 
 @app.route("/api/logs")
 def api_logs():
-    offset = int(request.args.get("offset", 0))
-    limit = int(request.args.get("limit", 100))
-    level_filter = request.args.get("level", "all")
-
-    log_file_path = os.path.join("logs", "vinted.log")
-
-    if not os.path.exists(log_file_path):
-        return jsonify({"logs": [], "total": 0})
-
-    # Parse log file
-    log_entries = []
-    total_matching_entries = 0
-
     try:
-        with open(log_file_path, "r", encoding="utf-8") as file:
-            # Read all lines from the file
-            all_lines = file.readlines()
+        log_file = os.path.join(os.path.dirname(__file__), "..", "logs", "vinted.log")
+        if not os.path.exists(log_file):
+            return jsonify({"logs": []})
 
-            # Process lines in reverse order (newest first)
-            all_lines.reverse()
+        lines = request.args.get("lines", "100")
+        try:
+            lines = int(lines)
+        except ValueError:
+            lines = 100
 
-            # Regular expression to parse log lines
-            # Format: 2023-09-15 12:34:56,789 - module_name - LEVEL - Message
-            log_pattern = (
-                r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - "
-                r"([^-]+) - ([A-Z]+) - (.+)"
-            )
+        with open(log_file, "r", encoding="utf-8") as f:
+            all_lines = f.readlines()
+            log_lines = all_lines[-lines:]
 
-            current_entry = 0
-
-            for line in all_lines:
-                match = re.match(log_pattern, line.strip())
-                if match:
-                    timestamp, module, level, message = match.groups()
-
-                    # Apply level filter if specified
-                    if level_filter != "all" and level != level_filter:
-                        continue
-
-                    total_matching_entries += 1
-
-                    # Skip entries before offset
-                    if total_matching_entries <= offset:
-                        continue
-
-                    # Add entry if within limit
-                    if current_entry < limit:
-                        log_entries.append(
-                            {
-                                "timestamp": timestamp,
-                                "module": module.strip(),
-                                "level": level,
-                                "message": message,
-                            }
-                        )
-                        current_entry += 1
-
-                    # Stop if we've reached the limit
-                    if current_entry >= limit:
-                        break
+        return jsonify({"logs": log_lines})
     except Exception as e:
-        logger.error(f"Error reading log file: {e}")
-        return jsonify({"logs": [], "total": 0, "error": str(e)})
+        logger.error(f"Error reading logs: {e}", exc_info=True)
+        return jsonify({"logs": [], "error": str(e)})
 
-    return jsonify({"logs": log_entries, "total": total_matching_entries})
+
+# ==================== App Runner ====================
 
 
 def web_ui_process():
-    logger.info("Web UI process started")
-    try:
-        app.run(host="0.0.0.0", port=8000, debug=False)
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Web UI process stopped")
-    except Exception as e:
-        logger.error(f"Error in web UI process: {e}", exc_info=True)
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
