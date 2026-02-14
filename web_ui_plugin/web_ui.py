@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import signal
 from urllib.parse import parse_qs, urlparse
@@ -225,20 +226,23 @@ def queries():
     profile_id = get_current_profile_id()
     all_queries = db.get_queries(profile_id=profile_id)
     queries_list = []
-    for query in all_queries:
+    for i, query in enumerate(all_queries):
         query_id, query_url, last_item, query_name, p_id = query
         parsed_url = urlparse(query_url)
         query_params = parse_qs(parsed_url.query)
         search_text = query_params.get("search_text", [None])[0]
         display = query_name if query_name else (search_text if search_text else query_url)
-        # Format the last_item timestamp for display
+
+        # Get the last timestamp for this query
         try:
-            last_found_item = timezone_utils.format_local_timestamp(last_item) if last_item else "Never"
+            last_timestamp = db.get_last_timestamp(query_id)
+            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
         except Exception:
             last_found_item = "Never"
 
         queries_list.append({
-            "id": query_id,
+            "id": i + 1,
+            "query_id": query_id,
             "query": query_url,
             "query_name": query_name,
             "display": display,
@@ -604,25 +608,60 @@ def logs():
 
 @app.route("/api/logs")
 def api_logs():
+    offset = int(request.args.get("offset", 0))
+    limit = int(request.args.get("limit", 100))
+    level_filter = request.args.get("level", "all")
+
+    log_file_path = os.path.join("logs", "vinted.log")
+
+    if not os.path.exists(log_file_path):
+        return jsonify({"logs": [], "total": 0})
+
+    log_entries = []
+    total_matching_entries = 0
+
     try:
-        log_file = os.path.join(os.path.dirname(__file__), "..", "logs", "vinted.log")
-        if not os.path.exists(log_file):
-            return jsonify({"logs": []})
+        with open(log_file_path, "r", encoding="utf-8") as file:
+            all_lines = file.readlines()
 
-        lines = request.args.get("lines", "100")
-        try:
-            lines = int(lines)
-        except ValueError:
-            lines = 100
+            # Process lines in reverse order (newest first)
+            all_lines.reverse()
 
-        with open(log_file, "r", encoding="utf-8") as f:
-            all_lines = f.readlines()
-            log_lines = all_lines[-lines:]
+            log_pattern = (
+                r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - "
+                r"([^-]+) - ([A-Z]+) - (.+)"
+            )
 
-        return jsonify({"logs": log_lines})
+            current_entry = 0
+
+            for line in all_lines:
+                match = re.match(log_pattern, line.strip())
+                if match:
+                    timestamp, module, level, message = match.groups()
+
+                    if level_filter != "all" and level != level_filter:
+                        continue
+
+                    total_matching_entries += 1
+
+                    if total_matching_entries <= offset:
+                        continue
+
+                    if current_entry < limit:
+                        log_entries.append(
+                            {
+                                "timestamp": timestamp,
+                                "module": module.strip(),
+                                "level": level,
+                                "message": message,
+                            }
+                        )
+                        current_entry += 1
+
+        return jsonify({"logs": log_entries, "total": total_matching_entries})
     except Exception as e:
         logger.error(f"Error reading logs: {e}", exc_info=True)
-        return jsonify({"logs": [], "error": str(e)})
+        return jsonify({"logs": [], "total": 0, "error": str(e)})
 
 
 # ==================== App Runner ====================
