@@ -133,7 +133,7 @@ def index():
             item_id, title, price, currency, timestamp, query, photo_url, query_name, username = item
             display_query = query_name if query_name else query
             # Format time
-            formatted_time = timezone_utils.format_timestamp(timestamp)
+            formatted_time = timezone_utils.format_local_timestamp(timestamp)
 
             recent_items.append({
                 "item": item_id,
@@ -295,7 +295,7 @@ def items():
     for item in items_raw:
         item_id, title, price, currency, timestamp, query, photo_url, query_name, username = item
         display_query = query_name if query_name else query
-        formatted_time = timezone_utils.format_timestamp(timestamp)
+        formatted_time = timezone_utils.format_local_timestamp(timestamp)
 
         items_list.append({
             "item": item_id,

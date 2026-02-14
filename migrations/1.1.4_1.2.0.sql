@@ -34,13 +34,13 @@ SELECT 1,
     COALESCE((SELECT value FROM parameters WHERE key = 'items_per_query'), '20');
 
 -- Add profile_id to queries table
-ALTER TABLE queries ADD COLUMN profile_id INTEGER DEFAULT 1 REFERENCES profiles(id);
+ALTER TABLE queries ADD COLUMN profile_id INTEGER DEFAULT 1;
 
 -- Add profile_id to allowlist table
-ALTER TABLE allowlist ADD COLUMN profile_id INTEGER DEFAULT 1 REFERENCES profiles(id);
+ALTER TABLE allowlist ADD COLUMN profile_id INTEGER DEFAULT 1;
 
 -- Add profile_id to blocked_users table
-ALTER TABLE blocked_users ADD COLUMN profile_id INTEGER DEFAULT 1 REFERENCES profiles(id);
+ALTER TABLE blocked_users ADD COLUMN profile_id INTEGER DEFAULT 1;
 
 -- Remove per-profile parameters from global parameters table
 DELETE FROM parameters WHERE key IN (
