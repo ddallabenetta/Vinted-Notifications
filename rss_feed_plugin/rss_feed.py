@@ -12,17 +12,21 @@ logger = get_logger(__name__)
 
 
 class RSSFeed:
-    def __init__(self, queue):
+    def __init__(self, queue, profile_id=1):
         self.app = Flask(__name__)
         self.queue = queue
+        self.profile_id = profile_id
         self.items = []
-        self.max_items = db.get_parameter("rss_max_items")
+        self.max_items = db.get_profile_setting(profile_id, "rss_max_items") or "100"
+
+        profile = db.get_profile(profile_id)
+        profile_name = profile["name"] if profile else "Default"
 
         # Initialize feed generator
         self.fg = FeedGenerator()
-        self.fg.title("Vinted Notifications")
-        self.fg.description("Latest items from Vinted matching your search queries")
-        self.fg.link(href=f'http://localhost:{db.get_parameter("rss_port")}')
+        self.fg.title(f"Vinted Notifications - {profile_name}")
+        self.fg.description(f"Latest items from Vinted matching your search queries ({profile_name})")
+        self.fg.link(href=f'http://localhost:{db.get_profile_setting(profile_id, "rss_port") or "8080"}')
         self.fg.language("en")
 
         # Set up routes
@@ -58,8 +62,8 @@ class RSSFeed:
         title = "New Vinted Item"
         try:
             # Try to extract title from the content
-            title_start = content.find("🆕 Title : ") + len("🆕 Title : ")
-            if title_start > len("🆕 Title : "):
+            title_start = content.find("Title : ") + len("Title : ")
+            if title_start > len("Title : "):
                 title_end = content.find("\n", title_start)
                 if title_end > 0:
                     title = content[title_start:title_end]
@@ -79,34 +83,34 @@ class RSSFeed:
         self.items.append((title, url, content, datetime.datetime.now()))
 
         # Limit the number of items
-        if len(self.items) > self.max_items:
+        if len(self.items) > int(self.max_items):
             self.items.pop(0)
 
     def serve_rss(self):
         return Response(self.fg.rss_str(), mimetype="application/rss+xml")
 
     def run(self):
-
         try:
-            port = db.get_parameter("rss_port")
-            logger.info(f"Starting RSS feed server on port {port}")
-            self.app.run(host="0.0.0.0", port=port)
+            port = db.get_profile_setting(self.profile_id, "rss_port") or "8080"
+            logger.info(f"Starting RSS feed server on port {port} for profile {self.profile_id}")
+            self.app.run(host="0.0.0.0", port=int(port))
         except Exception as e:
             logger.error(f"Error starting RSS feed server: {str(e)}", exc_info=True)
 
 
-def rss_feed_process(queue):
+def rss_feed_process(queue, profile_id=1):
     """
     Process function for the RSS feed.
 
     Args:
         queue (Queue): The queue to get new items from
+        profile_id (int): The profile ID for this RSS feed instance
     """
-    logger.info("RSS feed process started")
+    logger.info(f"RSS feed process started for profile {profile_id}")
     try:
-        feed = RSSFeed(queue)
+        feed = RSSFeed(queue, profile_id)
         feed.run()
     except (KeyboardInterrupt, SystemExit):
-        logger.info("RSS feed process stopped")
+        logger.info(f"RSS feed process stopped for profile {profile_id}")
     except Exception as e:
-        logger.error(f"Error in RSS feed process: {e}", exc_info=True)
+        logger.error(f"Error in RSS feed process (profile {profile_id}): {e}", exc_info=True)

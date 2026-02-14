@@ -10,25 +10,17 @@ from pyVintedVN import Vinted, requester
 logger = get_logger(__name__)
 
 
-def process_query(query, name=None):
+def process_query(query, name=None, profile_id=1):
     """
-    Process a Vinted query URL by:
-    1. Checking if the URL is a brand URL and converting it to standard format if needed
-    2. Parsing the URL and extracting query parameters
-    3. Ensuring the order flag is set to "newest_first"
-    4. Removing time and search_id parameters
-    5. Rebuilding the query string and URL
-    6. Checking if the query already exists in the database
-    7. Adding the query to the database if it doesn't exist
+    Process a Vinted query URL and add it to the database for a specific profile.
 
     Args:
         query (str): The Vinted query URL
-        name (str, optional): A name for the query. If provided, it will be used as the query name.
+        name (str, optional): A name for the query.
+        profile_id (int): The profile ID to associate the query with.
 
     Returns:
         tuple: (message, is_new_query)
-            - message (str): Status message
-            - is_new_query (bool): True if query was added, False if it already existed
     """
     # Check if the URL is a brand URL (format: url/brand/id-name)
     parsed_url = urlparse(query)
@@ -76,23 +68,26 @@ def process_query(query, name=None):
         )
     )
 
-    # Some queries are made with filters only, so we need to check if the search_text is present
-    if db.is_query_in_db(processed_query) is True:
+    # Check if the query already exists in the same profile
+    if db.is_query_in_db(processed_query, profile_id=profile_id) is True:
         return "Query already exists.", False
     else:
         # add the query to the db
-        db.add_query_to_db(processed_query, name)
+        db.add_query_to_db(processed_query, name, profile_id=profile_id)
         return "Query added.", True
 
 
-def get_formatted_query_list():
+def get_formatted_query_list(profile_id=None):
     """
     Get a formatted list of all queries in the database.
+
+    Args:
+        profile_id (int, optional): If provided, only return queries for this profile.
 
     Returns:
         str: A formatted string with all queries, numbered
     """
-    all_queries = db.get_queries()
+    all_queries = db.get_queries(profile_id=profile_id)
     queries_keywords = []
     for query in all_queries:
         parsed_url = urlparse(query[1])
@@ -117,20 +112,19 @@ def get_formatted_query_list():
     return query_list
 
 
-def process_remove_query(number):
+def process_remove_query(number, profile_id=None):
     """
     Process the removal of a query from the database.
 
     Args:
         number (str): The number of the query to remove or "all" to remove all queries
+        profile_id (int, optional): The profile ID for removing all queries.
 
     Returns:
         tuple: (message, success)
-            - message (str): Status message
-            - success (bool): True if query was removed successfully
     """
     if number == "all":
-        db.remove_all_queries_from_db()
+        db.remove_all_queries_from_db(profile_id=profile_id)
         return "All queries removed.", True
 
     # Check if number is a valid digit
@@ -149,12 +143,10 @@ def process_update_query(query_id, query, name):
     Args:
         query_id (int): The ID of the query to update
         query (str): The new Vinted query URL
-        name (str, optional): A new name for the query. If provided, it will be used as the query name.
+        name (str, optional): A new name for the query.
 
     Returns:
         tuple: (message, success)
-            - message (str): Status message
-            - success (bool): True if query was updated successfully
     """
     # Parse the URL and extract the query parameters
     parsed_url = urlparse(query)
@@ -188,111 +180,103 @@ def process_update_query(query_id, query, name):
         return "Failed to update query.", False
 
 
-def process_add_country(country):
+def process_add_country(country, profile_id=1):
     """
     Process the addition of a country to the allowlist.
 
     Args:
         country (str): The country code to add
+        profile_id (int): The profile ID.
 
     Returns:
         tuple: (message, country_list)
-            - message (str): Status message
-            - country_list (list): Current list of allowed countries
     """
     # Format the country code (remove spaces)
     country = country.replace(" ", "")
-    country_list = db.get_allowlist()
+    country_list = db.get_allowlist(profile_id=profile_id)
 
     # Validate the country code (check if it's 2 characters long)
     if len(country) != 2:
         return "Invalid country code", country_list
 
     # Check if the country is already in the allowlist
-    # If country_list is 0, it means the allowlist is empty
     if country_list != 0 and country.upper() in country_list:
         return f'Country "{country.upper()}" already in allowlist.', country_list
 
     # Add the country to the allowlist
-    db.add_to_allowlist(country.upper())
-    return "Country added.", db.get_allowlist()
+    db.add_to_allowlist(country.upper(), profile_id=profile_id)
+    return "Country added.", db.get_allowlist(profile_id=profile_id)
 
 
-def process_remove_country(country):
+def process_remove_country(country, profile_id=1):
     """
     Process the removal of a country from the allowlist.
 
     Args:
         country (str): The country code to remove
+        profile_id (int): The profile ID.
 
     Returns:
         tuple: (message, country_list)
-            - message (str): Status message
-            - country_list (list): Current list of allowed countries
     """
     # Format the country code (remove spaces)
     country = country.replace(" ", "")
 
     # Validate the country code (check if it's 2 characters long)
     if len(country) != 2:
-        return "Invalid country code", db.get_allowlist()
+        return "Invalid country code", db.get_allowlist(profile_id=profile_id)
 
     # Remove the country from the allowlist
-    db.remove_from_allowlist(country.upper())
-    return "Country removed.", db.get_allowlist()
+    db.remove_from_allowlist(country.upper(), profile_id=profile_id)
+    return "Country removed.", db.get_allowlist(profile_id=profile_id)
 
 
-def process_add_blocked_user(username):
+def process_add_blocked_user(username, profile_id=1):
     """
     Process the addition of a user to the blocked users list.
 
     Args:
         username (str): The Vinted username to block
+        profile_id (int): The profile ID.
 
     Returns:
         tuple: (message, success)
-            - message (str): Status message
-            - success (bool): True if user was blocked successfully
     """
     username = username.strip()
 
     if not username:
         return "Invalid username.", False
 
-    if db.is_user_blocked(username):
+    if db.is_user_blocked(username, profile_id=profile_id):
         return f'User "{username}" is already blocked.', False
 
-    db.add_blocked_user(username)
+    db.add_blocked_user(username, profile_id=profile_id)
     return "User blocked.", True
 
 
-def process_remove_blocked_user(username):
+def process_remove_blocked_user(username, profile_id=1):
     """
     Process the removal of a user from the blocked users list.
 
     Args:
         username (str): The Vinted username to unblock
+        profile_id (int): The profile ID.
 
     Returns:
         tuple: (message, success)
-            - message (str): Status message
-            - success (bool): True if user was unblocked successfully
     """
     username = username.strip()
 
     if not username:
         return "Invalid username.", False
 
-    db.remove_blocked_user(username)
+    db.remove_blocked_user(username, profile_id=profile_id)
     return "User unblocked.", True
 
 
 def get_user_country(profile_id):
     """
     Get the country code for a Vinted user.
-
-    Makes an API request to retrieve the user's country code.
-    Handles rate limiting by trying an alternative endpoint.
 
     Args:
         profile_id (str): The Vinted user's profile ID
@@ -324,10 +308,10 @@ def get_user_country(profile_id):
 def process_items(queue):
     """
     Process all queries from the database, search for items, and put them in the queue.
-    Uses the global items_queue by default, but can accept a custom queue for backward compatibility.
+    Each item in the queue includes the profile_id for routing.
 
     Args:
-        queue (Queue, optional): The queue to put the items in. Defaults to the global items_queue.
+        queue (Queue): The queue to put the items in.
 
     Returns:
         None
@@ -338,16 +322,20 @@ def process_items(queue):
     # Initialize Vinted
     vinted = Vinted()
 
-    # Get the number of items per query from the database
-    items_per_query = int(db.get_parameter("items_per_query"))
-
     # for each keyword we parse data
     for query in all_queries:
-        all_items = vinted.items.search(query[1], nbr_items=items_per_query)
+        query_id = query[0]
+        query_url = query[1]
+        profile_id = query[4]
+
+        # Get items_per_query from the profile settings
+        items_per_query = int(db.get_profile_setting(profile_id, "items_per_query") or "20")
+
+        all_items = vinted.items.search(query_url, nbr_items=items_per_query)
         # Filter to only include new items. This should reduce the amount of db calls.
         data = [item for item in all_items if item.is_new_item()]
-        queue.put((data, query[0]))
-        logger.info(f"Scraped {len(data)} items for query: {query[1]}")
+        queue.put((data, query_id, profile_id))
+        logger.info(f"Scraped {len(data)} items for query: {query_url}")
 
 
 def clear_item_queue(items_queue, new_items_queue):
@@ -356,8 +344,8 @@ def clear_item_queue(items_queue, new_items_queue):
     This function is scheduled to run frequently.
     """
     if not items_queue.empty():
-        data, query_id = items_queue.get()
-        banwords_str = db.get_parameter("banwords")
+        data, query_id, profile_id = items_queue.get()
+        banwords_str = db.get_profile_setting(profile_id, "banwords")
         for item in reversed(data):
             # If already in db, pass
             last_query_timestamp = db.get_last_timestamp(query_id)
@@ -371,34 +359,35 @@ def clear_item_queue(items_queue, new_items_queue):
                 # We update the timestamp
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
-            # Check if the user is blocked
-            elif db.is_user_blocked(item.raw_data["user"]["login"]):
+            # Check if the user is blocked (per-profile)
+            elif db.is_user_blocked(item.raw_data["user"]["login"], profile_id=profile_id):
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
             # If there's an allowlist and
             # If the user's country is not in the allowlist, we just update the timestamp
-            elif db.get_allowlist() != 0 and (
+            elif db.get_allowlist(profile_id=profile_id) != 0 and (
                 get_user_country(item.raw_data["user"]["id"])
-            ) not in (db.get_allowlist() + ["XX"]):
+            ) not in (db.get_allowlist(profile_id=profile_id) + ["XX"]):
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
-            # Check if the item title contains any banwords
+            # Check if the item title contains any banwords (per-profile)
             elif banwords_str and contains_banwords(item.title, banwords_str):
                 # If it contains banwords, just update the timestamp and skip
                 db.update_last_timestamp(query_id, item.raw_timestamp)
                 pass
             else:
-                # We create the message
-                message_template = db.get_parameter("message_template")
+                # We create the message using the profile's template
+                message_template = db.get_profile_setting(profile_id, "message_template")
+                if not message_template:
+                    message_template = "{title}\n{price}\n{brand}"
                 content = message_template.format(
                     title=item.title,
                     price=str(item.price) + " " + item.currency,
                     brand=item.brand_title,
                     image=None if item.photo is None else item.photo,
                 )
-                # add the item to the queue
-                new_items_queue.put((content, item.url, "Open Vinted", None, None))
-                # new_items_queue.put((content, item.url, "Open Vinted", item.buy_url, "Open buy page"))
+                # add the item to the queue with profile_id
+                new_items_queue.put((content, item.url, "Open Vinted", None, None, profile_id))
                 # Add the item to the db
                 db.add_item_to_db(
                     id=item.id,

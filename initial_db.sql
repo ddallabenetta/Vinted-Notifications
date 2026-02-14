@@ -7,13 +7,32 @@ PRAGMA foreign_keys = ON;
    Tables
    ============================ */
 
+-- Profiles table
+CREATE TABLE IF NOT EXISTS profiles
+(
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                     TEXT NOT NULL,
+    telegram_enabled         TEXT DEFAULT 'False',
+    telegram_token           TEXT DEFAULT '',
+    telegram_chat_id         TEXT DEFAULT '',
+    telegram_process_running TEXT DEFAULT 'False',
+    rss_enabled              TEXT DEFAULT 'False',
+    rss_port                 TEXT DEFAULT '8080',
+    rss_max_items            TEXT DEFAULT '100',
+    rss_process_running      TEXT DEFAULT 'False',
+    banwords                 TEXT DEFAULT '',
+    message_template         TEXT DEFAULT '',
+    items_per_query          TEXT DEFAULT '20'
+);
+
 -- Queries table
 CREATE TABLE IF NOT EXISTS queries
 (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    query     TEXT,
-    last_item NUMERIC,
-    query_name TEXT
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    query      TEXT,
+    last_item  NUMERIC,
+    query_name TEXT,
+    profile_id INTEGER DEFAULT 1 REFERENCES profiles(id)
 );
 
 -- Items table
@@ -33,16 +52,18 @@ CREATE TABLE IF NOT EXISTS items
 -- Allowlist table
 CREATE TABLE IF NOT EXISTS allowlist
 (
-    country TEXT
+    country    TEXT,
+    profile_id INTEGER DEFAULT 1 REFERENCES profiles(id)
 );
 
 -- Blocked users table
 CREATE TABLE IF NOT EXISTS blocked_users
 (
-    username TEXT PRIMARY KEY
+    username   TEXT,
+    profile_id INTEGER DEFAULT 1 REFERENCES profiles(id)
 );
 
--- Parameters table
+-- Parameters table (global settings only)
 CREATE TABLE IF NOT EXISTS parameters
 (
     key   TEXT PRIMARY KEY,
@@ -53,29 +74,25 @@ CREATE TABLE IF NOT EXISTS parameters
    Initial data
    ============================ */
 
+-- Default profile
+INSERT INTO profiles (id, name) VALUES (1, 'Default');
+
+-- Global parameters only
 INSERT INTO parameters (key, value)
-VALUES ('telegram_enabled', 'False'),
-       ('telegram_token', ''),
-       ('telegram_chat_id', ''),
-       ('telegram_process_running', 'False'),
-
-       ('rss_enabled', 'False'),
-       ('rss_port', '8080'),
-       ('rss_max_items', '100'),
-       ('rss_process_running', 'False'),
-
-       ('version', '1.0.3'),
+VALUES ('version', '1.2.0'),
        ('github_url', 'https://github.com/ddallabenetta/Vinted-Notifications'),
 
-       ('items_per_query', '20'),
        ('query_refresh_delay', '60'),
 
        ('proxy_list', ''),
        ('proxy_list_link', ''),
        ('check_proxies', 'False'),
        ('last_proxy_check_time', '0'),
-       ('banwords', ''),
 
        ('schedule_enabled', 'False'),
        ('schedule_start_time', '08:00'),
-       ('schedule_end_time', '01:00');
+       ('schedule_end_time', '01:00'),
+
+       ('timezone', 'Europe/Rome'),
+       ('user_agents', '[]'),
+       ('default_headers', '{}');

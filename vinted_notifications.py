@@ -24,8 +24,9 @@ if not os.path.exists("./data/vinted_notifications.db"):
     logger.info("Database created successfully")
 
 # Global process references
-telegram_process = None
-rss_process = None
+# Per-profile processes: dict of profile_id -> process
+telegram_processes = {}
+rss_processes = {}
 scrape_process = None
 current_query_refresh_delay = None
 schedule_paused = False
@@ -74,17 +75,29 @@ def item_extractor(items_queue, new_items_queue):
         logger.info("Consumer process stopped")
 
 
-def dispatcher_function(input_queue, rss_queue, telegram_queue):
+def dispatcher_function(input_queue, telegram_queues, rss_queues):
+    """
+    Dispatcher that routes items to the correct profile's telegram/rss queues.
+
+    Args:
+        input_queue: Queue with items including profile_id
+        telegram_queues: dict of profile_id -> Queue for telegram
+        rss_queues: dict of profile_id -> Queue for RSS
+    """
     logger.info("Dispatcher process started")
     try:
         while True:
             try:
-                # Get from input queue
+                # Get from input queue - now includes profile_id
                 item = input_queue.get()
-                # Send to RSS queue
-                rss_queue.put(item)
-                #
-                telegram_queue.put(item)
+                content, url, text, buy_url, buy_text, profile_id = item
+
+                # Route to the correct profile's queues
+                if profile_id in telegram_queues:
+                    telegram_queues[profile_id].put((content, url, text, buy_url, buy_text))
+
+                if profile_id in rss_queues:
+                    rss_queues[profile_id].put((content, url, text, buy_url, buy_text))
             except (KeyboardInterrupt, SystemExit):
                 raise
             except Exception as e:
@@ -95,8 +108,8 @@ def dispatcher_function(input_queue, rss_queue, telegram_queue):
         logger.info("Dispatcher process stopped")
 
 
-def telegram_bot_process(queue):
-    logger.info("Telegram bot process started")
+def telegram_bot_process(queue, profile_id):
+    logger.info(f"Telegram bot process started for profile {profile_id}")
     import asyncio
 
     try:
@@ -104,11 +117,11 @@ def telegram_bot_process(queue):
         from telegram_bot_plugin.telegram_bot import LeRobot
 
         # The bot will run with app.run_polling() which is already in the module
-        asyncio.run(LeRobot(queue))
+        asyncio.run(LeRobot(queue, profile_id))
     except (KeyboardInterrupt, SystemExit):
-        logger.info("Telegram bot process stopped")
+        logger.info(f"Telegram bot process stopped for profile {profile_id}")
     except Exception as e:
-        logger.error(f"Error in telegram bot process: {e}", exc_info=True)
+        logger.error(f"Error in telegram bot process (profile {profile_id}): {e}", exc_info=True)
 
 
 def is_within_schedule():
@@ -178,8 +191,8 @@ def check_refresh_delay(items_queue):
         logger.error(f"Error updating refresh delay: {e}", exc_info=True)
 
 
-def monitor_processes(items_queue, telegram_queue, rss_queue):
-    global telegram_process, rss_process, scrape_process, schedule_paused
+def monitor_processes(items_queue, telegram_queues, rss_queues, queue_manager):
+    global telegram_processes, rss_processes, scrape_process, schedule_paused
 
     # Check schedule
     within_schedule = is_within_schedule()
@@ -205,60 +218,80 @@ def monitor_processes(items_queue, telegram_queue, rss_queue):
     if not schedule_paused:
         check_refresh_delay(items_queue)
 
-    ### TELEGRAM ###
-    # Check telegram process status
-    telegram_should_run = db.get_parameter("telegram_process_running") == "True"
-    # Check if the telegram token and chat ID are set
-    telegram_token = db.get_parameter("telegram_token")
-    telegram_chat_id = db.get_parameter("telegram_chat_id")
-    if not telegram_token or not telegram_chat_id:
-        telegram_should_run = False
-    telegram_is_running = telegram_process is not None and telegram_process.is_alive()
+    ### PER-PROFILE TELEGRAM AND RSS ###
+    profiles = db.get_profiles()
 
-    if telegram_should_run and not telegram_is_running:
-        # Start telegram process
-        logger.info("Starting telegram bot process.")
-        telegram_process = multiprocessing.Process(
-            target=telegram_bot_process, args=(telegram_queue,)
+    for profile_id, profile_name in profiles:
+        profile_settings = db.get_all_profile_settings(profile_id)
+
+        ### TELEGRAM ###
+        telegram_should_run = profile_settings.get("telegram_process_running") == "True"
+        telegram_token = profile_settings.get("telegram_token", "")
+        telegram_chat_id = profile_settings.get("telegram_chat_id", "")
+        if not telegram_token or not telegram_chat_id:
+            telegram_should_run = False
+
+        telegram_is_running = (
+            profile_id in telegram_processes
+            and telegram_processes[profile_id] is not None
+            and telegram_processes[profile_id].is_alive()
         )
-        telegram_process.start()
-    elif not telegram_should_run and telegram_is_running:
-        # Stop telegram process
-        logger.info("Stopping telegram bot process.")
-        telegram_process.terminate()
-        telegram_process.join()
-        telegram_process = None
 
-    ### RSS ###
-    # Check RSS process status
-    rss_should_run = db.get_parameter("rss_process_running") == "True"
-    rss_is_running = rss_process is not None and rss_process.is_alive()
+        # Ensure queue exists for this profile
+        if profile_id not in telegram_queues:
+            telegram_queues[profile_id] = queue_manager.Queue()
 
-    if rss_should_run and not rss_is_running:
-        # Start RSS process
-        logger.info("Starting RSS process based on database status")
-        rss_process = multiprocessing.Process(
-            target=rss_feed_process, args=(rss_queue,)
+        if telegram_should_run and not telegram_is_running:
+            logger.info(f"Starting telegram bot process for profile '{profile_name}' (id={profile_id})")
+            telegram_processes[profile_id] = multiprocessing.Process(
+                target=telegram_bot_process,
+                args=(telegram_queues[profile_id], profile_id),
+            )
+            telegram_processes[profile_id].start()
+        elif not telegram_should_run and telegram_is_running:
+            logger.info(f"Stopping telegram bot process for profile '{profile_name}' (id={profile_id})")
+            telegram_processes[profile_id].terminate()
+            telegram_processes[profile_id].join()
+            telegram_processes[profile_id] = None
+
+        ### RSS ###
+        rss_should_run = profile_settings.get("rss_process_running") == "True"
+        rss_is_running = (
+            profile_id in rss_processes
+            and rss_processes[profile_id] is not None
+            and rss_processes[profile_id].is_alive()
         )
-        rss_process.start()
-    elif not rss_should_run and rss_is_running:
-        # Stop RSS process
-        logger.info("Stopping RSS process based on database status")
-        rss_process.terminate()
-        rss_process.join()
-        rss_process = None
+
+        # Ensure queue exists for this profile
+        if profile_id not in rss_queues:
+            rss_queues[profile_id] = queue_manager.Queue()
+
+        if rss_should_run and not rss_is_running:
+            logger.info(f"Starting RSS process for profile '{profile_name}' (id={profile_id})")
+            rss_processes[profile_id] = multiprocessing.Process(
+                target=rss_feed_process,
+                args=(rss_queues[profile_id], profile_id),
+            )
+            rss_processes[profile_id].start()
+        elif not rss_should_run and rss_is_running:
+            logger.info(f"Stopping RSS process for profile '{profile_name}' (id={profile_id})")
+            rss_processes[profile_id].terminate()
+            rss_processes[profile_id].join()
+            rss_processes[profile_id] = None
 
 
 def plugin_checker():
-    # Get telegram and rss enable status
-    telegram_enabled = db.get_parameter("telegram_enabled")
-    logger.info("Telegram enabled: {}".format(telegram_enabled))
-    rss_enabled = db.get_parameter("rss_enabled")
-    logger.info("RSS enabled: {}".format(rss_enabled))
+    # For each profile, reset process status at startup
+    profiles = db.get_profiles()
+    for profile_id, profile_name in profiles:
+        telegram_enabled = db.get_profile_setting(profile_id, "telegram_enabled")
+        logger.info(f"Profile '{profile_name}': Telegram enabled: {telegram_enabled}")
+        rss_enabled = db.get_profile_setting(profile_id, "rss_enabled")
+        logger.info(f"Profile '{profile_name}': RSS enabled: {rss_enabled}")
 
-    # Reset process status at startup
-    db.set_parameter("telegram_process_running", telegram_enabled)
-    db.set_parameter("rss_process_running", rss_enabled)
+        # Reset process status at startup
+        db.set_profile_setting(profile_id, "telegram_process_running", telegram_enabled)
+        db.set_profile_setting(profile_id, "rss_process_running", rss_enabled)
 
 
 if __name__ == "__main__":
@@ -282,11 +315,22 @@ if __name__ == "__main__":
     # Plugin checker
     plugin_checker()
 
-    # Create a shared queue
+    # Create shared queues
     items_queue = multiprocessing.Queue()
     new_items_queue = multiprocessing.Queue()
-    rss_queue = multiprocessing.Queue()
-    telegram_queue = multiprocessing.Queue()
+
+    # Create per-profile queues using multiprocessing.Manager for sharing between processes
+    # Manager queues (manager.Queue()) produce proxy objects that can be pickled and shared
+    # through managed dicts, unlike regular multiprocessing.Queue() objects
+    manager = multiprocessing.Manager()
+    telegram_queues = manager.dict()
+    rss_queues = manager.dict()
+
+    # Initialize queues for existing profiles
+    profiles = db.get_profiles()
+    for profile_id, profile_name in profiles:
+        telegram_queues[profile_id] = manager.Queue()
+        rss_queues[profile_id] = manager.Queue()
 
     # 1. Create and start the scrape process
     # This process will scrape items and put them in the items_queue
@@ -304,13 +348,13 @@ if __name__ == "__main__":
     item_extractor_process.start()
 
     # 3. Create the dispatcher process
-    # This process will handle the new items and send them to the enabled services
+    # This process will handle the new items and send them to the enabled services per profile
     dispatcher_process = multiprocessing.Process(
         target=dispatcher_function,
         args=(
             new_items_queue,
-            rss_queue,
-            telegram_queue,
+            telegram_queues,
+            rss_queues,
         ),
     )
     dispatcher_process.start()
@@ -322,7 +366,7 @@ if __name__ == "__main__":
         monitor_processes,
         "interval",
         seconds=5,
-        args=[items_queue, telegram_queue, rss_queue],
+        args=[items_queue, telegram_queues, rss_queues, manager],
         name="process_monitor",
     )
     monitor_scheduler.start()
@@ -340,10 +384,12 @@ if __name__ == "__main__":
         web_ui_process_instance.join()
 
         # plugins
-        if telegram_process:
-            telegram_process.join()
-        if rss_process:
-            rss_process.join()
+        for pid, proc in telegram_processes.items():
+            if proc:
+                proc.join()
+        for pid, proc in rss_processes.items():
+            if proc:
+                proc.join()
     except KeyboardInterrupt:
         # Handle Ctrl+C gracefully
         logger.info("Main process interrupted")
@@ -358,16 +404,15 @@ if __name__ == "__main__":
         # Terminate web UI process
         web_ui_process_instance.terminate()
 
-        # Plugins
-
-        if telegram_process and telegram_process.is_alive():
-            telegram_process.terminate()
-            # Set the process status in the database
-            db.set_parameter("telegram_process_running", "False")
-        if rss_process and rss_process.is_alive():
-            rss_process.terminate()
-            # Set the process status in the database
-            db.set_parameter("rss_process_running", "False")
+        # Plugins - per profile
+        for pid, proc in telegram_processes.items():
+            if proc and proc.is_alive():
+                proc.terminate()
+                db.set_profile_setting(pid, "telegram_process_running", "False")
+        for pid, proc in rss_processes.items():
+            if proc and proc.is_alive():
+                proc.terminate()
+                db.set_profile_setting(pid, "rss_process_running", "False")
 
         # Wait for all processes to terminate
         scrape_process.join()
@@ -376,9 +421,11 @@ if __name__ == "__main__":
         web_ui_process_instance.join()
 
         # Plugins
-        if telegram_process:
-            telegram_process.join()
-        if rss_process:
-            rss_process.join()
+        for pid, proc in telegram_processes.items():
+            if proc:
+                proc.join()
+        for pid, proc in rss_processes.items():
+            if proc:
+                proc.join()
 
         logger.info("All processes terminated")
