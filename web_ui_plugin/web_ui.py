@@ -120,64 +120,101 @@ def delete_profile(profile_id):
 def index():
     profile_id = get_current_profile_id()
 
-    try:
-        # Fetch stats scoped to the current profile
-        total_queries = db.get_total_queries_count(profile_id=profile_id)
-        total_items = db.get_total_items_count(profile_id=profile_id)
-        items_per_day = db.get_items_per_day(profile_id=profile_id)
+    # Get parameters (global + profile settings for display)
+    params = db.get_all_parameters()
+    profile_settings = db.get_all_profile_settings(profile_id)
+    params.update(profile_settings)
 
-        # Get recent items for the current profile
-        recent_items_raw = db.get_items(limit=10, profile_id=profile_id)
-        recent_items = []
-        for item in recent_items_raw:
-            item_id, title, price, currency, timestamp, query, photo_url, query_name, username = item
-            display_query = query_name if query_name else query
-            # Format time
-            formatted_time = timezone_utils.format_local_timestamp(timestamp)
+    # Get queries scoped to the current profile
+    all_queries = db.get_queries(profile_id=profile_id)
+    formatted_queries = []
+    for i, query in enumerate(all_queries):
+        parsed_query = urlparse(query[1])
+        query_params = parse_qs(parsed_query.query)
+        query_name = (
+            query[3]
+            if query[3] is not None
+            else query_params.get("search_text", [None])[0]
+        )
 
-            recent_items.append({
-                "item": item_id,
-                "title": title,
-                "price": price,
-                "currency": currency,
-                "timestamp": formatted_time,
-                "query": display_query,
-                "photo_url": photo_url,
-                "url": f"https://www.vinted.fr/items/{item_id}",
+        # Get the last timestamp for this query
+        try:
+            last_timestamp = db.get_last_timestamp(query[0])
+            last_found_item = timezone_utils.format_local_timestamp(last_timestamp)
+        except Exception as e:
+            logger.debug(f"Error getting last timestamp for query {query[0]}: {e}")
+            last_found_item = "Never"
+
+        formatted_queries.append(
+            {
+                "id": i + 1,
+                "query_id": query[0],
+                "query": query[1],
+                "display": query_name if query_name else query[1],
+                "last_found_item": last_found_item,
+            }
+        )
+
+    # Get recent items scoped to the current profile
+    items_raw = db.get_items(limit=10, profile_id=profile_id)
+    formatted_items = []
+    for item in items_raw:
+        username = item[8] if len(item) > 8 else None
+        formatted_items.append(
+            {
+                "title": item[1],
+                "price": item[2],
+                "currency": item[3],
+                "timestamp": timezone_utils.format_local_timestamp(item[4]),
+                "query": item[5],
+                "photo_url": item[6],
+                "url": (
+                    f"{urlparse(item[5]).scheme}://"
+                    f"{urlparse(item[5]).netloc}/items/{item[0]}"
+                ),
                 "username": username,
                 "is_blocked": db.is_user_blocked(username, profile_id=profile_id) if username else False,
-            })
-
-        # Check version
-        try:
-            is_up_to_date, ver, latest_version, github_url = core.check_version()
-        except Exception:
-            is_up_to_date, ver, latest_version, github_url = True, "?", "?", "#"
-
-        return render_template(
-            "index.html",
-            total_queries=total_queries,
-            total_items=total_items,
-            items_per_day=items_per_day,
-            recent_items=recent_items,
-            is_up_to_date=is_up_to_date,
-            ver=ver,
-            latest_version=latest_version,
-            github_url=github_url,
+            }
         )
-    except Exception as e:
-        logger.error(f"Error loading dashboard: {e}", exc_info=True)
-        return render_template(
-            "index.html",
-            total_queries=0,
-            total_items=0,
-            items_per_day=0,
-            recent_items=[],
-            is_up_to_date=True,
-            ver="?",
-            latest_version="?",
-            github_url="#",
-        )
+
+    # Get process status from the profile settings
+    telegram_running = profile_settings.get("telegram_process_running") == "True"
+    rss_running = profile_settings.get("rss_process_running") == "True"
+
+    # Get statistics scoped to the current profile
+    stats = {
+        "total_items": db.get_total_items_count(profile_id=profile_id),
+        "total_queries": db.get_total_queries_count(profile_id=profile_id),
+        "items_per_day": db.get_items_per_day(profile_id=profile_id),
+    }
+
+    # Get the last found item for this profile
+    last_item = db.get_last_found_item(profile_id=profile_id)
+    if last_item:
+        stats["last_item"] = {
+            "title": last_item[1],
+            "price": last_item[2],
+            "currency": last_item[3],
+            "timestamp": timezone_utils.format_local_timestamp(last_item[4]),
+            "query": last_item[5],
+            "photo_url": last_item[6],
+            "url": (
+                f"{urlparse(last_item[5]).scheme}://"
+                f"{urlparse(last_item[5]).netloc}/items/{last_item[0]}"
+            ),
+        }
+    else:
+        stats["last_item"] = None
+
+    return render_template(
+        "index.html",
+        params=params,
+        queries=formatted_queries,
+        items=formatted_items,
+        telegram_running=telegram_running,
+        rss_running=rss_running,
+        stats=stats,
+    )
 
 
 # ==================== Queries ====================
@@ -194,12 +231,18 @@ def queries():
         query_params = parse_qs(parsed_url.query)
         search_text = query_params.get("search_text", [None])[0]
         display = query_name if query_name else (search_text if search_text else query_url)
+        # Format the last_item timestamp for display
+        try:
+            last_found_item = timezone_utils.format_local_timestamp(last_item) if last_item else "Never"
+        except Exception:
+            last_found_item = "Never"
+
         queries_list.append({
             "id": query_id,
             "query": query_url,
             "query_name": query_name,
             "display": display,
-            "last_item": last_item,
+            "last_found_item": last_found_item,
         })
 
     return render_template("queries.html", queries=queries_list)
