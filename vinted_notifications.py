@@ -191,7 +191,7 @@ def check_refresh_delay(items_queue):
         logger.error(f"Error updating refresh delay: {e}", exc_info=True)
 
 
-def monitor_processes(items_queue, telegram_queues, rss_queues):
+def monitor_processes(items_queue, telegram_queues, rss_queues, queue_manager):
     global telegram_processes, rss_processes, scrape_process, schedule_paused
 
     # Check schedule
@@ -239,7 +239,7 @@ def monitor_processes(items_queue, telegram_queues, rss_queues):
 
         # Ensure queue exists for this profile
         if profile_id not in telegram_queues:
-            telegram_queues[profile_id] = multiprocessing.Queue()
+            telegram_queues[profile_id] = queue_manager.Queue()
 
         if telegram_should_run and not telegram_is_running:
             logger.info(f"Starting telegram bot process for profile '{profile_name}' (id={profile_id})")
@@ -264,7 +264,7 @@ def monitor_processes(items_queue, telegram_queues, rss_queues):
 
         # Ensure queue exists for this profile
         if profile_id not in rss_queues:
-            rss_queues[profile_id] = multiprocessing.Queue()
+            rss_queues[profile_id] = queue_manager.Queue()
 
         if rss_should_run and not rss_is_running:
             logger.info(f"Starting RSS process for profile '{profile_name}' (id={profile_id})")
@@ -320,6 +320,8 @@ if __name__ == "__main__":
     new_items_queue = multiprocessing.Queue()
 
     # Create per-profile queues using multiprocessing.Manager for sharing between processes
+    # Manager queues (manager.Queue()) produce proxy objects that can be pickled and shared
+    # through managed dicts, unlike regular multiprocessing.Queue() objects
     manager = multiprocessing.Manager()
     telegram_queues = manager.dict()
     rss_queues = manager.dict()
@@ -327,8 +329,8 @@ if __name__ == "__main__":
     # Initialize queues for existing profiles
     profiles = db.get_profiles()
     for profile_id, profile_name in profiles:
-        telegram_queues[profile_id] = multiprocessing.Queue()
-        rss_queues[profile_id] = multiprocessing.Queue()
+        telegram_queues[profile_id] = manager.Queue()
+        rss_queues[profile_id] = manager.Queue()
 
     # 1. Create and start the scrape process
     # This process will scrape items and put them in the items_queue
@@ -364,7 +366,7 @@ if __name__ == "__main__":
         monitor_processes,
         "interval",
         seconds=5,
-        args=[items_queue, telegram_queues, rss_queues],
+        args=[items_queue, telegram_queues, rss_queues, manager],
         name="process_monitor",
     )
     monitor_scheduler.start()
