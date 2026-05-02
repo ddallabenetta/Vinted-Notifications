@@ -14,14 +14,27 @@ from web_ui_plugin.web_ui import web_ui_process
 # Get logger for this module
 logger = get_logger(__name__)
 
+
+def ensure_database_ready():
+    os.makedirs("./data", exist_ok=True)
+
+    if not os.path.exists(db.DB_PATH):
+        logger.info("Database not found, creating a new one.")
+        db.create_or_update_sqlite_db("initial_db.sql")
+        logger.info("Database created successfully")
+        return
+
+    if not db.table_exists("parameters"):
+        logger.warning(
+            "Database exists but is missing the parameters table. "
+            "Applying base schema initialization."
+        )
+        db.create_or_update_sqlite_db("initial_db.sql")
+
+
 # Starting sequence
 # Db check
-if not os.path.exists("./data/vinted_notifications.db"):
-    logger.info("Database not found, creating a new one.")
-    # Create the folder if it doesn't exist
-    os.makedirs("./data", exist_ok=True)
-    db.create_or_update_sqlite_db("initial_db.sql")
-    logger.info("Database created successfully")
+ensure_database_ready()
 
 # Global process references
 # Per-profile processes: dict of profile_id -> process
@@ -297,20 +310,24 @@ def plugin_checker():
 if __name__ == "__main__":
     # Run db migrations
     current_version = db.get_parameter("version")
+    if current_version is None:
+        logger.warning(
+            "Database version is missing; skipping migrations until version metadata is available."
+        )
     # Check if there is a file that starts with the current version in the migrations folder. We keep comparing until
     # we find no migration files that start with the current version.
     migration_files = [f for f in os.listdir("migrations")]
-    while True:
+    while current_version is not None:
         migration_file = next(
             (f for f in migration_files if f.startswith(current_version)), None
         )
-        if migration_file:
-            logger.info(f"Running migration: {migration_file}")
-            db.create_or_update_sqlite_db("./migrations/" + migration_file)
-            # Increment the version
-            current_version = db.get_parameter("version")
-        else:
+        if not migration_file:
             break
+
+        logger.info(f"Running migration: {migration_file}")
+        db.create_or_update_sqlite_db("./migrations/" + migration_file)
+        # Increment the version
+        current_version = db.get_parameter("version")
 
     # Plugin checker
     plugin_checker()

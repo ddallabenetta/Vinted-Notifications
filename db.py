@@ -29,6 +29,24 @@ def create_or_update_sqlite_db(db_path):
             conn.close()
 
 
+def table_exists(table_name):
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (table_name,),
+        )
+        return cursor.fetchone() is not None
+    except Exception:
+        print_exc()
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+
 # ==================== Profile Functions ====================
 
 
@@ -601,6 +619,8 @@ def clear_blocked_users(profile_id=1):
 def get_parameter(key):
     conn = None
     try:
+        if not table_exists("parameters"):
+            return None
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM parameters WHERE key=?", (key,))
@@ -616,6 +636,8 @@ def get_parameter(key):
 def set_parameter(key, value):
     conn = None
     try:
+        if not table_exists("parameters"):
+            return
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("UPDATE parameters SET value=? WHERE key=?", (value, key))
@@ -630,6 +652,8 @@ def set_parameter(key, value):
 def get_all_parameters():
     conn = None
     try:
+        if not table_exists("parameters"):
+            return {}
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT key, value FROM parameters")

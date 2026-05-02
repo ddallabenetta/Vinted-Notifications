@@ -75,11 +75,11 @@ CREATE TABLE IF NOT EXISTS parameters
    ============================ */
 
 -- Default profile
-INSERT INTO profiles (id, name) VALUES (1, 'Default');
+INSERT OR IGNORE INTO profiles (id, name) VALUES (1, 'Default');
 
 -- Global parameters only
-INSERT INTO parameters (key, value)
-VALUES ('version', '1.2.0'),
+INSERT OR IGNORE INTO parameters (key, value)
+VALUES ('version', '1.2.1'),
        ('github_url', 'https://github.com/ddallabenetta/Vinted-Notifications'),
 
        ('query_refresh_delay', '60'),
